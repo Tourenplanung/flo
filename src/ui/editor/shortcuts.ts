@@ -58,6 +58,15 @@ export function handleShortcut(e: KeyboardEvent, extra: { save: () => void }): b
   const key = e.key.toLowerCase();
   const s = useEditorStore.getState();
 
+  // In workflow mode only document-level shortcuts apply; the flow canvas handles the rest.
+  if (s.mode === 'workflow') {
+    if (!mod) return false;
+    if (key === 'z') return e.shiftKey ? redo() : undo(), true;
+    if (key === 'y') return redo(), true;
+    if (key === 's') return extra.save(), true;
+    return false;
+  }
+
   if (mod) {
     switch (key) {
       case 'z':

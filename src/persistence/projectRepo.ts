@@ -67,9 +67,11 @@ export function createRepo(database: FloDB = db) {
     },
 
     async remove(id: string): Promise<void> {
-      await database.transaction('rw', database.projects, database.assets, async () => {
+      await database.transaction('rw', [database.projects, database.assets, database.runCache, database.executions], async () => {
         await database.projects.delete(id);
         await database.assets.where('projectId').equals(id).delete();
+        await database.runCache.where('projectId').equals(id).delete();
+        await database.executions.where('projectId').equals(id).delete();
       });
     },
 

@@ -18,6 +18,8 @@ export const migrations: Record<number, Migration> = {
       ? raw.pages.map((p: Record<string, unknown>) => ({ background: '#1E1F25', guides: [], ...p }))
       : raw.pages,
   }),
+  // Version 2 adds workflows (Milestone 3).
+  1: (raw) => ({ ...raw, schemaVersion: 2, workflows: Array.isArray(raw.workflows) ? raw.workflows : [] }),
 };
 
 export function migrateProject(input: unknown): Project {

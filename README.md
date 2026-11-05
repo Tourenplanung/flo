@@ -8,7 +8,7 @@ API are required. Italian is the default language; English is available.
 
 ## Status
 
-Milestone 1 (Foundation) is complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+Milestones 1 (Foundation) and 3 (Workflow engine) are complete; most of Milestone 2 is done. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
 roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Requirements
@@ -42,3 +42,15 @@ On a fresh machine, install the Playwright browser once with `npx playwright ins
   `Ctrl/⌘`+click selects deep. Drag to move (with smart guides), handles to resize, drag from the
   rulers to create guides. Dragging a layer onto a frame moves it inside.
 - Everything is undoable (`⌘Z` / `⌘⇧Z`) and autosaved to IndexedDB.
+
+## Workflow mode
+
+Switch **Design ↔ Workflow** in the top bar.
+
+- Start from a template (*Dal brief al design*, *Verifica design esistente*, *Esplora varianti
+  di stile*) or an empty workflow; add nodes from the palette and connect compatible ports
+  (colors show port types).
+- **Esegui tutto** runs the graph; ▶ on a node runs it and its dependencies. Results are cached;
+  changing a parameter marks downstream nodes as outdated.
+- Design-producing nodes create real, editable frames: use **Apri nel canvas** to edit them.
+- AI nodes are marked and stay unavailable until an AI provider is configured (Milestone 4).

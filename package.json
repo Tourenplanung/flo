@@ -2,7 +2,7 @@
   "name": "flo",
   "private": true,
   "version": "0.1.0",
-  "description": "fl\u00f6 \u2014 AI-native visual interface design studio (proprietary)",
+  "description": "flö — AI-native visual interface design studio (proprietary)",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
     "@fontsource-variable/jetbrains-mono": "5.2.6",
     "@fontsource-variable/playfair-display": "5.2.6",
     "@fontsource-variable/space-grotesk": "5.2.8",
+    "@xyflow/react": "12.12.0",
     "dexie": "4.0.11",
     "immer": "10.1.3",
     "lucide-react": "0.544.0",

@@ -41,9 +41,11 @@ describe('project validation & migration', () => {
     delete p.assets;
     delete p.pages[0].guides;
     delete p.pages[0].background;
+    delete p.workflows;
     p.schemaVersion = 0;
     const migrated = migrateProject(p);
-    expect(migrated.schemaVersion).toBe(1);
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.workflows).toEqual([]);
     expect(migrated.pages[0]!.guides).toEqual([]);
   });
 

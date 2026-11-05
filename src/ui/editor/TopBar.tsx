@@ -45,6 +45,7 @@ const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string }[] = [
 export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit: () => void }) {
   const t = useT();
   const tool = useEditorStore((s) => s.tool);
+  const mode = useEditorStore((s) => s.mode);
   const project = useDocStore((s) => s.project)!;
   const canUndo = useDocStore((s) => s.past.length > 0);
   const canRedo = useDocStore((s) => s.future.length > 0);
@@ -57,7 +58,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
         <LayoutGrid size={13} className="text-fg-subtle" />
       </button>
       <div className="mx-1 h-5 w-px bg-line" />
-      <nav className="flex items-center gap-0.5" aria-label="Tools" data-testid="toolbar">
+      <nav className={cx('flex items-center gap-0.5', mode === 'workflow' && 'invisible')} aria-label="Tools" data-testid="toolbar">
         {TOOLS.map(({ tool: tl, icon: Icon, key }) => (
           <IconButton
             key={tl}
@@ -100,12 +101,18 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
       </div>
 
       <div className="flex rounded-md bg-field p-0.5" role="tablist" aria-label="Mode">
-        <button role="tab" aria-selected className="flex h-6 items-center gap-1.5 rounded-[5px] bg-line-strong px-2.5 text-[11px] text-fg">
-          <Frame size={12} /> {t('mode.design')}
-        </button>
-        <button role="tab" aria-selected={false} disabled title={t('mode.soon')} className="flex h-6 items-center gap-1.5 rounded-[5px] px-2.5 text-[11px] text-fg-subtle">
-          <Workflow size={12} /> {t('mode.workflow')}
-        </button>
+        {(['design', 'workflow'] as const).map((m) => (
+          <button
+            key={m}
+            role="tab"
+            aria-selected={mode === m}
+            data-testid={`mode-${m}`}
+            onClick={() => useEditorStore.getState().setMode(m)}
+            className={cx('flex h-6 items-center gap-1.5 rounded-[5px] px-2.5 text-[11px]', mode === m ? 'bg-line-strong text-fg' : 'text-fg-muted hover:text-fg')}
+          >
+            {m === 'design' ? <Frame size={12} /> : <Workflow size={12} />} {t(`mode.${m}`)}
+          </button>
+        ))}
       </div>
       <IconButton label={`${t('top.preview')} — ${t('mode.soon')}`} disabled>
         <Play size={15} />
@@ -125,7 +132,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
         <Download size={15} />
       </IconButton>
       <ShortcutsButton />
-      <ZoomMenu />
+      {mode === 'design' ? <ZoomMenu /> : <div className="w-16" />}
     </header>
   );
 }

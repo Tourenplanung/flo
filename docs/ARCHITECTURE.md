@@ -79,6 +79,36 @@ Gestures (move, resize, draw, marquee, pan, guides) are a small state machine in
 `Canvas.tsx`. Moves of auto-layout children reorder them inside the flow; dropping onto
 another frame reparents while preserving world position.
 
+## Workflow engine (Milestone 3)
+
+```
+core/workflow/
+  catalog.ts     Node kinds: category, typed ports, Zod param schemas, UI field specs,
+                 availability ('ready' | 'ai' | 'planned')
+  graph.ts       Connection validation (port types, single input, no cycles), topo order
+  engine.ts      runWorkflow(): topological execution, caching, statuses, history records
+  runners.ts     Implementation of every 'ready' node
+  wireframe.ts / styling.ts / responsive.ts / checks.ts / htmlExport.ts   deterministic generators
+  templates.ts   Built-in templates + re-id cloning for user templates and branches
+```
+
+- **Workflows live in the project document** (`project.workflows`, schema v2) and change only
+  through validated ops (`createWorkflow`, `addWorkflowNodes`, `addWorkflowEdge`, …), so they
+  are undoable, autosaved and validated on load/import like the design itself.
+- **Execution state is separate**: statuses in `store/workflowStore.ts`; per-node output cache
+  and execution history in IndexedDB (`runCache`, `executions` tables).
+- **Cache keys** hash node kind + params + inputs. Design inputs are fingerprinted from the
+  *current* content of their frames, so editing a design by hand invalidates downstream checks.
+- **Nodes that write to the document** (wireframe, apply styles, responsive adapter) apply their
+  changes as one undoable transaction and remember the frames they generated; re-running
+  replaces those frames instead of duplicating them.
+- **No fake AI**: AI nodes (UX analysis, information architecture, component/UI generators)
+  report "unavailable" until a provider exists (Milestone 4); planned nodes (prototype, React
+  export) say so explicitly.
+- The engine is framework-independent; the UI supplies an `EngineHost` (document access,
+  `dispatch`, asset data URLs, icon SVG rendering).
+- UI: React Flow canvas (`ui/workflow/`), loaded lazily so the design editor stays light.
+
 ## Persistence and security
 
 - Projects are stored as validated documents in IndexedDB (Dexie); images as blobs.
@@ -88,7 +118,9 @@ another frame reparents while preserving world position.
   rendered as React text (never HTML). Imported image payloads are restricted to
   PNG/JPEG/WebP/GIF data URLs whose type matches the asset metadata (no SVG).
 - Imported projects get a new id so they cannot overwrite local projects.
-- No code from project files or (future) AI output is ever executed.
+- No code from project files or (future) AI output is ever executed. Workflow node kinds and
+  parameters are validated against the catalog; unknown kinds are rejected.
+- Exported HTML escapes all user text and attribute values.
 
 ## Decisions (ADRs)
 

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { clearAssetUrls } from '@/editor/assetUrls';
 import { useAutosave } from '@/editor/autosave';
 import { useT } from '@/i18n';
 import { projectRepo } from '@/persistence/projectRepo';
 import { useDocStore } from '@/store/docStore';
 import { useEditorStore, type LeftTab } from '@/store/editorStore';
+import { useWorkflowStore } from '@/store/workflowStore';
 import { cx } from '@/ui/common/controls';
 import { Toast } from '@/ui/common/Toast';
 import { Canvas } from './canvas/Canvas';
@@ -16,6 +17,9 @@ import { PagesPanel } from './panels/PagesPanel';
 import { useEditorShortcuts } from './shortcuts';
 import { TopBar } from './TopBar';
 import { zoomToFit } from './viewportActions';
+
+/** The workflow canvas (React Flow) is loaded on demand to keep the initial bundle small. */
+const WorkflowView = lazy(() => import('@/ui/workflow/WorkflowView').then((m) => ({ default: m.WorkflowView })));
 
 export function Editor({ projectId, onExit }: { projectId: string; onExit: () => void }) {
   const t = useT();
@@ -31,6 +35,7 @@ export function Editor({ projectId, onExit }: { projectId: string; onExit: () =>
         if (!p) return setError(t('error.notFound'));
         useDocStore.getState().load(p);
         useEditorStore.getState().reset(p.pages[0]!.id);
+        void useWorkflowStore.getState().init(p.id);
         // Fit content once it has been rendered and measured.
         requestAnimationFrame(() => requestAnimationFrame(() => zoomToFit()));
       })
@@ -61,6 +66,7 @@ function EditorShell({ onExit }: { onExit: () => void }) {
   const { status, saveNow } = useAutosave();
   useEditorShortcuts(saveNow);
   const leftTab = useEditorStore((s) => s.leftTab);
+  const mode = useEditorStore((s) => s.mode);
   const tabs: { id: LeftTab; label: string }[] = [
     { id: 'layers', label: t('left.layers') },
     { id: 'insert', label: t('left.insert') },
@@ -73,6 +79,11 @@ function EditorShell({ onExit }: { onExit: () => void }) {
         saveNow();
         onExit();
       }} />
+      {mode === 'workflow' ? (
+        <Suspense fallback={<div className="flex-1 bg-canvas" />}>
+          <WorkflowView />
+        </Suspense>
+      ) : (
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" aria-label="Pannello sinistro">
           <PagesPanel />
@@ -106,6 +117,7 @@ function EditorShell({ onExit }: { onExit: () => void }) {
           <Inspector />
         </aside>
       </div>
+      )}
       <Toast />
     </div>
   );

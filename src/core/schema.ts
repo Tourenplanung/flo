@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 const MAX_STR = 10_000;
 const MAX_NAME = 200;
@@ -275,6 +275,44 @@ export const AssetMetaSchema = z.object({
   size: nonNeg,
 });
 
+/* ------------------------------------------------------------------ */
+/* Workflows                                                           */
+/* ------------------------------------------------------------------ */
+
+const MAX_PARAMS_JSON = 200_000;
+
+/** Node parameters are validated per kind by the workflow catalog; here only shape and size. */
+export const WorkflowParamsSchema = z
+  .record(z.string().max(64), z.unknown())
+  .refine((p) => JSON.stringify(p).length <= MAX_PARAMS_JSON, 'Parameters are too large');
+
+export const WorkflowNodeSchema = z.object({
+  id: IdSchema,
+  kind: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  label: z.string().max(MAX_NAME),
+  position: z.object({ x: finite, y: finite }),
+  params: WorkflowParamsSchema,
+});
+
+export const WorkflowEdgeSchema = z.object({
+  id: IdSchema,
+  source: IdSchema,
+  sourcePort: z.string().min(1).max(64),
+  target: IdSchema,
+  targetPort: z.string().min(1).max(64),
+});
+
+export const WorkflowSchema = z.object({
+  id: IdSchema,
+  name: z.string().max(MAX_NAME),
+  nodes: z.array(WorkflowNodeSchema).max(1000),
+  edges: z.array(WorkflowEdgeSchema).max(5000),
+});
+
+export type WorkflowNode = z.infer<typeof WorkflowNodeSchema>;
+export type WorkflowEdge = z.infer<typeof WorkflowEdgeSchema>;
+export type Workflow = z.infer<typeof WorkflowSchema>;
+
 export const ProjectSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   id: IdSchema,
@@ -283,6 +321,7 @@ export const ProjectSchema = z.object({
   pages: z.array(PageSchema).min(1).max(500),
   nodes: z.record(IdSchema, DesignNodeSchema),
   assets: z.record(IdSchema, AssetMetaSchema),
+  workflows: z.array(WorkflowSchema).max(200),
 });
 
 export type Paint = z.infer<typeof PaintSchema>;

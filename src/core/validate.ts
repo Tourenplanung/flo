@@ -1,5 +1,7 @@
 /** Structural integrity checks beyond what the Zod schema can express. */
-import { ProjectSchema, isContainer, type Project } from './schema';
+import { ProjectSchema, isContainer, type Project, type Workflow } from './schema';
+import { parseParams } from './workflow/catalog';
+import { validateConnection } from './workflow/graph';
 
 export interface IntegrityIssue {
   severity: 'error' | 'warning';
@@ -48,6 +50,25 @@ export function checkIntegrity(project: Project): IntegrityIssue[] {
       const n = project.nodes[cur];
       if (!n) break; // already reported as mismatch/orphan
       cur = n.parentId;
+    }
+  }
+  // Workflows: known node kinds, valid params, valid typed acyclic connections.
+  const wfIds = new Set<string>();
+  for (const wf of project.workflows) {
+    if (wfIds.has(wf.id)) err(`Duplicate workflow id ${wf.id}`);
+    wfIds.add(wf.id);
+    const rebuilt: Workflow = { ...wf, edges: [] };
+    const nodeIds = new Set<string>();
+    for (const n of wf.nodes) {
+      if (nodeIds.has(n.id)) err(`Duplicate workflow node ${n.id}`);
+      nodeIds.add(n.id);
+      const res = parseParams(n.kind, n.params);
+      if (!res.ok) err(`Workflow node ${n.id}: ${res.error}`);
+    }
+    for (const e of wf.edges) {
+      const problem = validateConnection(rebuilt, e);
+      if (problem) err(`Workflow edge ${e.id}: ${problem}`);
+      else rebuilt.edges.push(e);
     }
   }
   return issues;

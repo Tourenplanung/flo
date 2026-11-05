@@ -13,6 +13,7 @@ each package in `node_modules`.
 | immer | 10.1.3 | MIT |
 | zod | 4.6.7 | MIT |
 | dexie | 4.0.11 | Apache-2.0 |
+| @xyflow/react (React Flow) | 12.12.0 | MIT |
 | lucide-react | 0.544.0 | ISC |
 | @fontsource-variable/inter (Inter typeface) | 5.2.6 | OFL-1.1 |
 | @fontsource-variable/space-grotesk | 5.2.8 | OFL-1.1 |

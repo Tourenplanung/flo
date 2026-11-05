@@ -26,7 +26,7 @@ Legend: ✅ done and tested · 🟡 partial · ⬜ not started
 | Project management: create/open/rename/duplicate/delete/import/export | ✅ | `.flo.json` with embedded images |
 | Schema versioning + migrations | ✅ | v0 → v1 migration tested |
 | Italian (default) + English | ✅ | |
-| Tests: unit (core, store, persistence), component, Playwright e2e | ✅ | 38 unit/component, 3 Playwright e2e |
+| Tests: unit (core, store, persistence), component, Playwright e2e | ✅ | |
 
 **Acceptance:** a user can create and edit a simple web interface manually — verified by
 `e2e/landing-page.spec.ts` (header, nav, hero with heading/text/CTA, image placeholder,
@@ -40,8 +40,8 @@ footer; edit typography, colors, spacing; reorder; resize; save; reload; reopen;
 - Rich text (mixed styles within one text layer) is not supported.
 - Drag-to-reorder inside auto layout works for single layers only.
 - Clipboard is in-memory (works across pages/projects in the same tab, not across tabs/apps).
-- Workflow mode, AI assistant and prototype preview buttons are visible but disabled and
-  labelled "available in an upcoming version".
+- AI assistant and prototype preview buttons are visible but disabled and labelled
+  "available in an upcoming version".
 
 ## Milestone 2 — Design engine 🟡
 
@@ -56,9 +56,38 @@ footer; edit typography, colors, spacing; reorder; resize; save; reload; reopen;
 | Components, instances, overrides, variants | ⬜ |
 | Persistent project history panel | ⬜ |
 
-## Milestone 3 — Workflow engine ⬜
-Workflow canvas (React Flow), node registry, typed connections, execution engine,
-branching, caching, design-document integration.
+## Milestone 3 — Workflow engine ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Workflow canvas (React Flow): add, connect, move, delete nodes | ✅ | Palette click or drag-and-drop |
+| Node registry with typed ports and validated parameters | ✅ | 25 node kinds in 6 categories |
+| Typed connections + dependency validation (no cycles, one link per input) | ✅ | Enforced in ops, not only UI |
+| Execution engine: run all / run up to a node / force re-run | ✅ | Topological order |
+| Caching of intermediate results, stale detection, regenerate downstream | ✅ | Persisted in IndexedDB |
+| Branching (Branch, Condition, Merge, Compare variants) | ✅ | Inactive branches are skipped |
+| Output previews (sitemap, styles, reports, design, code) | ✅ | Report issues jump to the layer |
+| Design document integration (read existing frames, create editable frames) | ✅ | One undoable step per node run |
+| Workflow templates (3 built-in) + save as template + duplicate as branch | ✅ | |
+| Execution history | ✅ | Last 300 runs per project |
+| Deterministic nodes: brief, screenshot/reference, existing design, sitemap, user flow, wireframe, design system, apply styles, responsive adapter, accessibility/consistency/responsive checks, canvas output, HTML/CSS export | ✅ | |
+| AI nodes: UX analysis, information architecture, component generator, UI screen generator | 🟡 | Present, marked "requires AI provider"; enabled in M4 |
+| Interactive prototype, React export nodes | 🟡 | Present, marked "coming soon" (M5, M6) |
+
+**Acceptance:** a workflow creates and modifies real, editable design elements — verified by
+`e2e/workflow.spec.ts` (brief → sitemap → wireframe → design system → styled → mobile →
+checks → HTML export; cache, persistence, regeneration without duplicates) and
+`src/core/__tests__/workflow.test.ts`.
+
+### Known limitations after M3
+
+- Sitemap and user flow are written by hand (or taken from bullet lists in the brief);
+  deriving them from free text needs AI (M4).
+- Apply styles uses rule-based mapping from semantic roles (button, header, card…); designs
+  without roles get only generic colors/fonts.
+- Responsive adapter produces separate variant frames; true breakpoint overrides of a single
+  frame arrive with the responsive engine (M2 remainder).
+- HTML export embeds images as data URLs and loads Google Fonts for bundled families.
 
 ## Milestone 4 — AI integration ⬜
 Provider registry, Ollama, optional Claude via a secure server-side proxy (keys never in the
@@ -69,5 +98,9 @@ client bundle), structured generation as validated `DocOp` patches with preview/
 `core/style.ts` already maps nodes to CSS and is designed to be shared by the exporter.
 
 ## Milestone 7 — Release preparation ⬜
-PWA/offline service worker, performance (code splitting; current JS bundle ≈ 177 kB gzip),
+PWA/offline service worker, performance (main JS ≈ 196 kB gzip; workflow view lazy-loaded ≈ 72 kB),
 accessibility review, security review, in-app third-party license notices, deployment.
+
+## Test totals
+
+49 unit/component tests (Vitest) · 5 end-to-end tests (Playwright).

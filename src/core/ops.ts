@@ -17,10 +17,16 @@ import {
   PageSchema,
   STRUCTURAL_KEYS,
   isContainer,
+  WorkflowEdgeSchema,
+  WorkflowNodeSchema,
+  WorkflowSchema,
   type DesignNode,
   type Project,
+  type Workflow,
 } from './schema';
 import { getPage } from './tree';
+import { parseParams } from './workflow/catalog';
+import { validateConnection } from './workflow/graph';
 
 export class OpError extends Error {
   constructor(message: string) {
@@ -49,6 +55,20 @@ export const DocOpSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('addAsset'), asset: AssetMetaSchema }),
   z.object({ type: z.literal('removeAsset'), id: IdSchema }),
   z.object({ type: z.literal('renameProject'), name: z.string().max(200) }),
+  // Workflows
+  z.object({ type: z.literal('createWorkflow'), workflow: WorkflowSchema, index: IndexSchema }),
+  z.object({ type: z.literal('updateWorkflow'), id: IdSchema, props: z.object({ name: z.string().max(200) }).partial() }),
+  z.object({ type: z.literal('deleteWorkflow'), id: IdSchema }),
+  z.object({ type: z.literal('addWorkflowNodes'), workflowId: IdSchema, nodes: z.array(WorkflowNodeSchema).min(1).max(500) }),
+  z.object({
+    type: z.literal('updateWorkflowNode'),
+    workflowId: IdSchema,
+    id: IdSchema,
+    props: WorkflowNodeSchema.pick({ label: true, position: true, params: true }).partial(),
+  }),
+  z.object({ type: z.literal('removeWorkflowNodes'), workflowId: IdSchema, ids: z.array(IdSchema).min(1) }),
+  z.object({ type: z.literal('addWorkflowEdge'), workflowId: IdSchema, edge: WorkflowEdgeSchema }),
+  z.object({ type: z.literal('removeWorkflowEdges'), workflowId: IdSchema, ids: z.array(IdSchema).min(1) }),
 ]);
 
 export type DocOp = z.infer<typeof DocOpSchema>;
@@ -84,6 +104,18 @@ function wouldCreateCycle(draft: Project, nodeId: string, newParentId: string): 
     cur = draft.nodes[cur]?.parentId;
   }
   return false;
+}
+
+function getWorkflow(draft: Project, id: string): Workflow {
+  const wf = draft.workflows.find((w) => w.id === id);
+  if (!wf) throw new OpError(`Workflow ${id} not found`);
+  return wf;
+}
+
+function checkedParams(kind: string, params: unknown): Record<string, unknown> {
+  const res = parseParams(kind, params);
+  if (!res.ok) throw new OpError(`Invalid parameters for ${kind}: ${res.error}`);
+  return res.params;
 }
 
 function deleteSubtree(draft: Project, id: string) {
@@ -197,6 +229,69 @@ export function applyOp(draft: Project, op: DocOp): void {
     }
     case 'renameProject': {
       draft.name = op.name;
+      return;
+    }
+    case 'createWorkflow': {
+      if (draft.workflows.some((w) => w.id === op.workflow.id)) throw new OpError('Duplicate workflow id');
+      const wf: Workflow = { ...structuredClone(op.workflow), nodes: [], edges: [] };
+      for (const n of op.workflow.nodes) {
+        if (wf.nodes.some((x) => x.id === n.id)) throw new OpError(`Duplicate workflow node ${n.id}`);
+        wf.nodes.push({ ...structuredClone(n), params: checkedParams(n.kind, n.params) });
+      }
+      for (const e of op.workflow.edges) {
+        const err = validateConnection(wf, e);
+        if (err) throw new OpError(err);
+        wf.edges.push(structuredClone(e));
+      }
+      draft.workflows.splice(Math.min(op.index ?? draft.workflows.length, draft.workflows.length), 0, wf);
+      return;
+    }
+    case 'updateWorkflow': {
+      Object.assign(getWorkflow(draft, op.id), structuredClone(op.props));
+      return;
+    }
+    case 'deleteWorkflow': {
+      const i = draft.workflows.findIndex((w) => w.id === op.id);
+      if (i < 0) throw new OpError(`Workflow ${op.id} not found`);
+      draft.workflows.splice(i, 1);
+      return;
+    }
+    case 'addWorkflowNodes': {
+      const wf = getWorkflow(draft, op.workflowId);
+      for (const n of op.nodes) {
+        if (wf.nodes.some((x) => x.id === n.id)) throw new OpError(`Duplicate workflow node ${n.id}`);
+        wf.nodes.push({ ...structuredClone(n), params: checkedParams(n.kind, n.params) });
+      }
+      return;
+    }
+    case 'updateWorkflowNode': {
+      const wf = getWorkflow(draft, op.workflowId);
+      const n = wf.nodes.find((x) => x.id === op.id);
+      if (!n) throw new OpError(`Workflow node ${op.id} not found`);
+      if (op.props.label !== undefined) n.label = op.props.label;
+      if (op.props.position) n.position = { ...op.props.position };
+      if (op.props.params) n.params = checkedParams(n.kind, { ...JSON.parse(JSON.stringify(n.params)), ...structuredClone(op.props.params) });
+      return;
+    }
+    case 'removeWorkflowNodes': {
+      const wf = getWorkflow(draft, op.workflowId);
+      const ids = new Set(op.ids);
+      wf.nodes = wf.nodes.filter((n) => !ids.has(n.id));
+      wf.edges = wf.edges.filter((e) => !ids.has(e.source) && !ids.has(e.target));
+      return;
+    }
+    case 'addWorkflowEdge': {
+      const wf = getWorkflow(draft, op.workflowId);
+      if (wf.edges.some((e) => e.id === op.edge.id)) throw new OpError('Duplicate edge id');
+      const err = validateConnection(wf, op.edge);
+      if (err) throw new OpError(err);
+      wf.edges.push(structuredClone(op.edge));
+      return;
+    }
+    case 'removeWorkflowEdges': {
+      const wf = getWorkflow(draft, op.workflowId);
+      const ids = new Set(op.ids);
+      wf.edges = wf.edges.filter((e) => !ids.has(e.id));
       return;
     }
   }

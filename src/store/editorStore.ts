@@ -5,6 +5,7 @@ import type { Project } from '@/core/schema';
 
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'line' | 'text' | 'image';
 export type LeftTab = 'layers' | 'insert' | 'assets';
+export type EditorMode = 'design' | 'workflow';
 
 export interface Viewport {
   x: number;
@@ -16,6 +17,8 @@ export const MIN_ZOOM = 0.02;
 export const MAX_ZOOM = 64;
 
 interface EditorState {
+  mode: EditorMode;
+  setMode: (mode: EditorMode) => void;
   pageId: string | null;
   selection: string[];
   hoveredId: string | null;
@@ -52,6 +55,8 @@ interface EditorState {
 export const DEFAULT_VIEWPORT: Viewport = { x: 80, y: 80, zoom: 0.5 };
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
+  mode: 'design',
+  setMode: (mode) => set({ mode, hoveredId: null, editingTextId: null, snapLines: [], marquee: null }),
   pageId: null,
   selection: [],
   hoveredId: null,
@@ -67,7 +72,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   toast: null,
 
   reset: (pageId) =>
-    set({ pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {} }),
+    set({ mode: 'design', pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {} }),
   setPage: (pageId) => set({ pageId, selection: [], hoveredId: null, editingTextId: null }),
   select: (ids) => {
     const cur = get().selection;

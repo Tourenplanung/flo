@@ -171,6 +171,7 @@ export function createProject(name: string, pageName = 'Pagina 1'): Project {
     pages: [createPage(pageName)],
     nodes: {},
     assets: {},
+    workflows: [],
   };
 }
 
