@@ -2,7 +2,7 @@
   "name": "flo",
   "private": true,
   "version": "0.1.0",
-  "description": "flö — AI-native visual interface design studio (proprietary)",
+  "description": "fl\u00f6 \u2014 AI-native visual interface design studio (proprietary)",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -12,9 +12,11 @@
     "typecheck": "tsc -b --pretty",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test --trace off"
+    "e2e": "playwright test --trace off",
+    "ai-proxy": "node server/claude-proxy.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.1.0",
     "@fontsource-variable/inter": "5.2.6",
     "@fontsource-variable/jetbrains-mono": "5.2.6",
     "@fontsource-variable/playfair-display": "5.2.6",

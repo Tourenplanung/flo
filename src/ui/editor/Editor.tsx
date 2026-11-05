@@ -8,6 +8,8 @@ import { useEditorStore, type LeftTab } from '@/store/editorStore';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cx } from '@/ui/common/controls';
 import { Toast } from '@/ui/common/Toast';
+import { AssistantPanel } from '@/ui/ai/AssistantPanel';
+import { AiSettingsDialog, CostConfirmDialog } from '@/ui/ai/AiDialogs';
 import { Canvas } from './canvas/Canvas';
 import { Inspector } from './inspector/Inspector';
 import { Component, History, Image as ImageIcon, Layers, Palette, PlusSquare } from 'lucide-react';
@@ -125,12 +127,15 @@ function EditorShell({ onExit }: { onExit: () => void }) {
         <main className="relative min-w-0 flex-1">
           <Canvas />
         </main>
+        <AssistantPanel />
         <aside className="w-64 shrink-0 overflow-y-auto border-l border-line bg-panel" aria-label="Inspector">
           <Inspector />
         </aside>
       </div>
       )}
       <Toast />
+      <AiSettingsDialog />
+      <CostConfirmDialog />
     </div>
   );
 }

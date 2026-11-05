@@ -6,10 +6,15 @@ import type { BriefValue, DesignValue, ReportValue, SitemapValue, StylesValue } 
 import { accessibilityReport, consistencyReport, responsiveReport } from './checks';
 import { NodeRunError, type Runner, type RunnerContext } from './engine';
 import { exportHtml } from './htmlExport';
-import { ensurePage, liveFrames, nextFreeX, removeGenerated, type Device } from './placement';
+import { DEVICES, ensurePage, liveFrames, nextFreeX, removeGenerated, type Device } from './placement';
 import { adaptTree } from './responsive';
 import { deriveStyles, designSystemTokenOps, styleTree, styleUpdates, type DesignSystemParams } from './styling';
 import { buildWireframe, treesFor } from './wireframe';
+import { produce } from 'immer';
+import { AI_PLAN_JSON_SCHEMA, parsePlan, planToOps } from '../ai/plan';
+import { buildDesignPrompt, DESIGN_SYSTEM_PROMPT, IA_SCHEMA, IA_SYSTEM, UX_ANALYSIS_SCHEMA, UX_SYSTEM } from '../ai/agent';
+import { createId } from '../ids';
+import { applyOps } from '../ops';
 
 const t = (ctx: RunnerContext, it: string, en: string) => (ctx.host.lang === 'it' ? it : en);
 
@@ -229,6 +234,90 @@ export const RUNNERS: Record<string, Runner> = {
     return { outputs: { code: { type: 'code', files: [{ path: 'index.html', content: html }] } }, summary: `index.html · ${Math.round(html.length / 1024)} kB` };
   },
 };
+
+/* ------------------------------------------------------------------ */
+/* AI nodes                                                            */
+/* ------------------------------------------------------------------ */
+
+function needAi(ctx: RunnerContext) {
+  if (!ctx.host.ai) throw new NodeRunError(t(ctx, 'Nessun provider AI configurato', 'No AI provider configured'));
+  return ctx.host.ai;
+}
+
+function briefText(ctx: RunnerContext): string {
+  const b = ctx.inputs.brief as BriefValue | undefined;
+  if (!b) throw new NodeRunError(t(ctx, 'Collega un brief', 'Connect a brief'));
+  return b.text;
+}
+
+async function aiDesign(ctx: RunnerContext, asComponents: boolean) {
+  const ai = needAi(ctx);
+  const project = ctx.host.getProject();
+  const styles = ctx.inputs.styles as StylesValue | undefined;
+  const ops: DocOp[] = removeGenerated(project, ctx.previous?.generated);
+  const { pageId, ops: pageOps } = ensurePage(project, String(ctx.params.pageName));
+  ops.unshift(...pageOps);
+  // Work on a preview of the document after cleanup so the plan targets the right page.
+  const base = ops.length ? produce(project, (d) => applyOps(d, ops)) : project;
+  const device = ctx.params.device as Device;
+  const request = [
+    asComponents
+      ? `Create a small library of reusable UI components for this product (e.g. buttons in primary/secondary variants, input field, card, navigation bar). Each component is its own top-level frame using auto layout, named "Component/Name".`
+      : `Design the key screens for this product as top-level ${device} frames (${DEVICES[device].width}px wide, vertical auto layout, height hugging content).`,
+    `Product brief:\n${briefText(ctx)}`,
+    styles
+      ? `Use this design system: primary ${styles.colors.primary}, background ${styles.colors.background}, surface ${styles.colors.surface}, text ${styles.colors.text}, muted ${styles.colors.muted}, border ${styles.colors.border}; fonts ${styles.fonts.heading}/${styles.fonts.body}; sizes h1 ${styles.sizes.h1}, h2 ${styles.sizes.h2}, h3 ${styles.sizes.h3}, body ${styles.sizes.body}; radius ${styles.radius}.`
+      : '',
+    String(ctx.params.instructions ?? ''),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  const gen = await ai.generate({ system: DESIGN_SYSTEM_PROMPT, prompt: buildDesignPrompt(base, { targetId: pageId, contextIds: [] }, request), schema: AI_PLAN_JSON_SCHEMA, maxTokens: 32_000 });
+  let plan;
+  try {
+    plan = parsePlan(gen.json ?? gen.text);
+  } catch (e) {
+    throw new NodeRunError(e instanceof Error ? e.message : String(e));
+  }
+  const res = planToOps(base, plan, pageId, () => createId());
+  const roots = res.createdRoots.filter((id) => res.ops.some((o) => o.type === 'insertTree' && o.nodes[0]!.id === id && o.nodes[0]!.parentId === pageId));
+  if (!roots.length) throw new NodeRunError(t(ctx, `Il piano AI non ha creato schermate${res.errors.length ? `: ${res.errors[0]}` : ''}`, `The AI plan created no frames${res.errors.length ? `: ${res.errors[0]}` : ''}`));
+  const extra: DocOp[] = asComponents
+    ? roots.map((id) => ({ type: 'setComponent', id, component: { set: 'AI components', variant: {}, description: plan.summary.slice(0, 500) } }) as DocOp)
+    : [];
+  ctx.host.apply([...ops, ...res.ops, ...extra], `Workflow · ${ctx.node.label || 'AI'}`);
+  const out = designOut(pageId, roots);
+  const usage = gen.usage ? ` · ${gen.usage.inputTokens}+${gen.usage.outputTokens} tok` : '';
+  return { outputs: { design: out }, generated: out, summary: `${roots.length} frame · ${gen.model}${usage}${res.errors.length ? ` · ${res.errors.length} ⚠` : ''}` };
+}
+
+RUNNERS['ux-analysis'] = async (ctx) => {
+  const gen = await needAi(ctx).generate({ system: UX_SYSTEM, prompt: briefText(ctx), schema: UX_ANALYSIS_SCHEMA, maxTokens: 8000 });
+  const data = gen.json as { title?: string; findings?: { kind: string; text: string }[] } | undefined;
+  if (!data?.findings) throw new NodeRunError(t(ctx, 'Risposta AI non valida', 'Invalid AI response'));
+  const report: ReportValue = {
+    type: 'report',
+    title: String(data.title ?? 'UX'),
+    checked: data.findings.length,
+    issues: data.findings.slice(0, 100).map((f) => ({ severity: f.kind === 'risk' ? 'warning' : 'info', message: `[${f.kind}] ${String(f.text).slice(0, 500)}` })),
+  };
+  return { outputs: { report }, summary: `${report.issues.length} · ${gen.model}` };
+};
+
+RUNNERS['info-architecture'] = async (ctx) => {
+  const gen = await needAi(ctx).generate({ system: IA_SYSTEM, prompt: briefText(ctx), schema: IA_SCHEMA, maxTokens: 4000 });
+  const data = gen.json as { pages?: { name: string; depth: number }[] } | undefined;
+  if (!data?.pages?.length) throw new NodeRunError(t(ctx, 'Risposta AI non valida', 'Invalid AI response'));
+  const outline = data.pages
+    .slice(0, 60)
+    .map((p) => `${'  '.repeat(Math.max(0, Math.min(3, Math.round(p.depth))))}${String(p.name).slice(0, 80)}`)
+    .join('\n');
+  const pages = parseOutline(outline);
+  return { outputs: { sitemap: { type: 'sitemap', pages } }, summary: `${pages.length} ${t(ctx, 'pagine', 'pages')} · ${gen.model}` };
+};
+
+RUNNERS['ui-generator'] = (ctx) => aiDesign(ctx, false);
+RUNNERS['component-generator'] = (ctx) => aiDesign(ctx, true);
 
 function imageInput(ctx: RunnerContext) {
   const assetId = ctx.params.assetId as string | null;

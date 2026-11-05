@@ -8,7 +8,7 @@ API are required. Italian is the default language; English is available.
 
 ## Status
 
-Milestones 1 (Foundation), 2 (Design engine) and 3 (Workflow engine) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+Milestones 1–4 (foundation, design engine, workflow engine, optional AI) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
 roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Requirements
@@ -26,6 +26,7 @@ roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 | `npm run typecheck` | Strict TypeScript check |
 | `npm test` | Unit and component tests (Vitest + Testing Library) |
 | `npm run build` | Typecheck + production build into `dist/` |
+| `npm run ai-proxy` | Optional local Claude proxy (see [docs/AI.md](docs/AI.md)) |
 | `npm run e2e` | End-to-end tests (Playwright; builds must exist: run `npm run build` first) |
 
 On a fresh machine, install the Playwright browser once with `npx playwright install chromium`.
@@ -62,4 +63,11 @@ Switch **Design ↔ Workflow** in the top bar.
 - **Esegui tutto** runs the graph; ▶ on a node runs it and its dependencies. Results are cached;
   changing a parameter marks downstream nodes as outdated.
 - Design-producing nodes create real, editable frames: use **Apri nel canvas** to edit them.
-- AI nodes are marked and stay unavailable until an AI provider is configured (Milestone 4).
+- AI nodes are marked and stay unavailable until an AI provider is configured.
+
+## AI (optional)
+
+✦ in the top bar opens the design assistant. Connect **Ollama** (local, free) or **Claude**
+(paid, via a local proxy that keeps the API key off the browser). Every change the AI
+proposes is validated, applied as one undoable step and can be accepted or rejected; paid
+calls always ask for confirmation. Setup: [docs/AI.md](docs/AI.md).

@@ -4,13 +4,15 @@ import { blobToDataUrl } from '@/core/fileFormat';
 import type { IconName } from '@/core/schema';
 import type { EngineHost } from '@/core/workflow/engine';
 import { projectRepo } from '@/persistence/projectRepo';
+import { generateWithConsent, getActiveProvider } from './ai';
 import { dispatch, getProject } from '@/store/docStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { DESIGN_ICONS } from '@/ui/common/icons';
 
 export function createEditorHost(): EngineHost {
   return {
-    aiAvailable: false,
+    aiAvailable: !!getActiveProvider(),
+    ai: getActiveProvider() ? { generate: (req, signal) => generateWithConsent(req, 'Workflow', signal) } : undefined,
     lang: useSettingsStore.getState().language,
     getProject: () => {
       const p = getProject();

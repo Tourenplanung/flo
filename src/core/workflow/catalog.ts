@@ -349,12 +349,20 @@ export const NODE_SPECS: NodeSpec[] = [
     category: 'design',
     label: l('Generatore componenti', 'Component generator'),
     description: l('Genera componenti riutilizzabili da una descrizione.', 'Generates reusable components from a description.'),
-    inputs: [{ id: 'brief', type: 'brief', label: l('Brief', 'Brief') }],
+    inputs: [
+      { id: 'brief', type: 'brief', label: l('Brief', 'Brief') },
+      { id: 'styles', type: 'styles', label: l('Stili', 'Styles'), optional: true },
+    ],
     outputs: [{ id: 'design', type: 'design', label: l('Design', 'Design') }],
-    params: noParams,
-    defaults: {},
-    fields: [],
+    params: z.object({ device: DEVICE, pageName: z.string().min(1).max(200), instructions: text(4000) }),
+    defaults: { device: 'desktop', pageName: 'AI', instructions: '' },
+    fields: [
+      { key: 'device', kind: 'select', label: l('Dispositivo', 'Device'), options: deviceOptions },
+      { key: 'pageName', kind: 'text', label: l('Pagina di destinazione', 'Target page') },
+      { key: 'instructions', kind: 'textarea', label: l('Istruzioni aggiuntive', 'Extra instructions') },
+    ],
     availability: 'ai',
+    sideEffects: true,
   }),
   spec({
     kind: 'ui-generator',
@@ -366,10 +374,15 @@ export const NODE_SPECS: NodeSpec[] = [
       { id: 'styles', type: 'styles', label: l('Stili', 'Styles'), optional: true },
     ],
     outputs: [{ id: 'design', type: 'design', label: l('Design', 'Design') }],
-    params: noParams,
-    defaults: {},
-    fields: [],
+    params: z.object({ device: DEVICE, pageName: z.string().min(1).max(200), instructions: text(4000) }),
+    defaults: { device: 'desktop', pageName: 'AI', instructions: '' },
+    fields: [
+      { key: 'device', kind: 'select', label: l('Dispositivo', 'Device'), options: deviceOptions },
+      { key: 'pageName', kind: 'text', label: l('Pagina di destinazione', 'Target page') },
+      { key: 'instructions', kind: 'textarea', label: l('Istruzioni aggiuntive', 'Extra instructions') },
+    ],
     availability: 'ai',
+    sideEffects: true,
   }),
 
   /* ---------------- VALIDATION ---------------- */

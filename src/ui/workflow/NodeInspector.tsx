@@ -5,6 +5,8 @@ import { FONTS } from '@/core/style';
 import { getSpec, type FieldSpec, type PortValue } from '@/core/workflow/catalog';
 import { unavailableReason } from '@/core/workflow/engine';
 import { openInCanvas, renameNode, updateNodeParams } from '@/editor/workflowActions';
+import { getActiveProvider } from '@/editor/ai';
+import { useAiStore } from '@/store/aiStore';
 import { useAssetUrl } from '@/editor/assetUrls';
 import { useT, type MessageKey } from '@/i18n';
 import { getProject, useDocStore } from '@/store/docStore';
@@ -271,6 +273,7 @@ export function NodeInspector({ workflow }: { workflow: Workflow }) {
   const error = useWorkflowStore((s) => (selectedId ? s.errors[selectedId] : undefined));
   const running = useWorkflowStore((s) => s.running);
   useWorkflowStore((s) => s.cacheVersion);
+  useAiStore((s) => s.provider + s.ollama.model + s.claude.token);
   const node = workflow.nodes.find((n) => n.id === selectedId);
   const spec = node ? getSpec(node.kind) : undefined;
 
@@ -284,7 +287,7 @@ export function NodeInspector({ workflow }: { workflow: Workflow }) {
   }
 
   const entry = getCache(workflow.id).get(node.id);
-  const reason = unavailableReason(spec, { aiAvailable: false, lang });
+  const reason = unavailableReason(spec, { aiAvailable: !!getActiveProvider(), lang });
   const set = (key: string) => (v: unknown, mergeKey?: string) => updateNodeParams(workflow.id, node.id, { [key]: v }, mergeKey);
   const outputs = entry ? Object.entries(entry.outputs).filter((e): e is [string, PortValue] => !!e[1]) : [];
 

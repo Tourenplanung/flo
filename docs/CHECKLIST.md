@@ -106,18 +106,42 @@ checks → HTML export; cache, persistence, regeneration without duplicates) and
   frame arrive with the responsive engine (M2 remainder).
 - HTML export embeds images as data URLs and loads Google Fonts for bundled families.
 
-## Milestone 4 — AI integration ⬜
-Provider registry, Ollama, optional Claude via a secure server-side proxy (keys never in the
-client bundle), structured generation as validated `DocOp` patches with preview/approval.
+## Milestone 4 — AI integration ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Provider registry / interface (check, generate, billable, cancel, usage) | ✅ | `src/core/ai/provider.ts` |
+| Ollama provider (local, JSON-schema structured output) | ✅ | Browser → Ollama HTTP API |
+| Claude provider through a secure local proxy | ✅ | `server/claude-proxy.ts`; key never in the browser |
+| Cost authorization before every paid call | ✅ | Estimate shown; optional per-session approval |
+| AI design operations as a validated plan → document ops | ✅ | Flat JSON schema; dry-run; invalid actions skipped and listed |
+| Preview, accept/reject, history trace (`AI · …`) | ✅ | Reject = undo |
+| Conversational assistant (selection or page context) | ✅ | Cancel in-flight requests |
+| Workflow AI nodes: UX analysis, information architecture, UI screen generator, component generator | ✅ | Unavailable (not faked) without a provider |
+| Settings panel with connection test and model choice | ✅ | |
+
+**Acceptance:** a connected AI provider can generate or modify editable UI screens —
+verified by `e2e/ai.spec.ts` (providers mocked at the network level: Ollama API and the local
+proxy) and `src/core/__tests__/ai.test.ts`, `server/claude-proxy.test.ts`.
+
+### Known limitations after M4
+
+- Real model quality was not measured in this environment (no Ollama/Anthropic access in
+  CI); tests use recorded plan fixtures. Small local models may return plans with skipped
+  actions — they are reported, never applied blindly.
+- Vision inputs (screenshot/reference images) are not sent to models yet.
+- The assistant's preview is applied to the document (as one undoable step) rather than shown
+  in a separate overlay; rejecting is only possible while it is the latest change.
+- One provider active at a time.
 
 ## Milestone 5 — Prototyping ⬜
 ## Milestone 6 — Code export (React + TS + CSS) ⬜
 `core/style.ts` already maps nodes to CSS and is designed to be shared by the exporter.
 
 ## Milestone 7 — Release preparation ⬜
-PWA/offline service worker, performance (main JS ≈ 196 kB gzip; workflow view lazy-loaded ≈ 72 kB),
+PWA/offline service worker, performance (main JS ≈ 228 kB gzip; workflow view lazy-loaded),
 accessibility review, security review, in-app third-party license notices, deployment.
 
 ## Test totals
 
-59 unit/component tests (Vitest) · 6 end-to-end tests (Playwright).
+73 unit/component tests (Vitest) · 9 end-to-end tests (Playwright).

@@ -25,6 +25,7 @@ import { useT } from '@/i18n';
 import { projectRepo } from '@/persistence/projectRepo';
 import { dispatch, useDocStore } from '@/store/docStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useAiStore } from '@/store/aiStore';
 import { useEditorStore, useViewport, type Tool } from '@/store/editorStore';
 import { cx, IconButton } from '@/ui/common/controls';
 import { Logo } from '@/ui/common/Logo';
@@ -46,6 +47,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
   const t = useT();
   const tool = useEditorStore((s) => s.tool);
   const mode = useEditorStore((s) => s.mode);
+  const aiOpen = useAiStore((s) => s.panelOpen);
   const project = useDocStore((s) => s.project)!;
   const canUndo = useDocStore((s) => s.past.length > 0);
   const canRedo = useDocStore((s) => s.future.length > 0);
@@ -117,7 +119,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
       <IconButton label={`${t('top.preview')} — ${t('mode.soon')}`} disabled>
         <Play size={15} />
       </IconButton>
-      <IconButton label={`${t('top.ai')} — ${t('mode.soon')}`} disabled>
+      <IconButton label={t('top.ai')} active={aiOpen} testId="ai-toggle" onClick={() => useAiStore.getState().setPanelOpen(!aiOpen)}>
         <Sparkles size={15} />
       </IconButton>
       <IconButton

@@ -16,6 +16,7 @@ import { collectSubtree } from '../tree';
 import { getSpec, type DesignValue, type NodeSpec, type PortValue } from './catalog';
 import { topoOrder, upstreamOf } from './graph';
 import { RUNNERS } from './runners';
+import type { GenerateRequest, GenerateResult } from '../ai/provider';
 
 export type NodeStatus = 'idle' | 'running' | 'done' | 'cached' | 'error' | 'skipped' | 'unavailable';
 
@@ -25,8 +26,10 @@ export interface EngineHost {
   apply(ops: DocOp[], label: string): Project;
   getAssetDataUrl?(assetId: string): Promise<string | null>;
   iconSvg?(name: string, strokeWidth: number): Promise<string>;
-  /** True when an AI provider is configured (Milestone 4). */
+  /** True when an AI provider is configured. */
   aiAvailable: boolean;
+  /** AI access (provider + user authorization for billable calls). */
+  ai?: { generate(req: GenerateRequest, signal?: AbortSignal): Promise<GenerateResult> };
   lang: 'it' | 'en';
 }
 

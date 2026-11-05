@@ -130,6 +130,27 @@ core/workflow/
   `dispatch`, asset data URLs, icon SVG rendering).
 - UI: React Flow canvas (`ui/workflow/`), loaded lazily so the design editor stays light.
 
+## AI integration (Milestone 4)
+
+```
+core/ai/
+  provider.ts        AiProvider interface, errors, cost estimate
+  providers/ollama.ts  Browser → Ollama HTTP API (structured `format`)
+  providers/claude.ts  Browser → local proxy (session token; no API key in the browser)
+  plan.ts            AI plan schema (flat, non-recursive JSON schema) → validated DocOps
+  agent.ts           Context outline, prompts, runDesignAgent()
+server/claude-proxy.ts  Node proxy using @anthropic-ai/sdk (127.0.0.1, CORS allowlist, token)
+editor/ai.ts         Active provider, cost confirmation, generateWithConsent()
+ui/ai/               Assistant panel, settings dialog, cost confirmation dialog
+```
+
+The AI output contract is the plan: the model can only propose create/update/delete
+actions with typed, bounded properties. `planToOps` resolves references, builds nodes with the
+regular factories, and dry-runs every action against the document (invalid ones are
+rejected individually). The result is one labelled, undoable transaction — the same path as
+any manual edit. Workflow AI nodes use the same plan pipeline through the `EngineHost.ai`
+capability, and are `unavailable` when no provider is configured. See `docs/AI.md`.
+
 ## Persistence and security
 
 - Projects are stored as validated documents in IndexedDB (Dexie); images as blobs.
@@ -142,6 +163,8 @@ core/workflow/
 - No code from project files or (future) AI output is ever executed. Workflow node kinds and
   parameters are validated against the catalog; unknown kinds are rejected.
 - Exported HTML escapes all user text and attribute values.
+- AI: provider credentials never reach the browser (Claude via local proxy with session
+  token); model output is data validated into ops, never executed; paid calls need consent.
 
 ## Decisions (ADRs)
 

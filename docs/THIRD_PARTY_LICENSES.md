@@ -23,6 +23,13 @@ each package in `node_modules`.
 Fonts under the SIL Open Font License may be bundled and used in proprietary software; the
 font files themselves must not be sold on their own and keep their license.
 
+## Local AI proxy (`server/`, not part of the web bundle)
+
+| Package | Version | License |
+| --- | --- | --- |
+| @anthropic-ai/sdk | 1.1.0 | Apache-2.0 |
+| zod | 4.6.7 | MIT |
+
 ## Development only (not shipped)
 
 | Package | License |
