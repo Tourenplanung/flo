@@ -9,6 +9,7 @@ import { useDocStore } from '@/store/docStore';
 import { Checkbox, IconButton, MIXED, NumberField, Section, Segmented, SelectField, TextField } from '@/ui/common/controls';
 import { DESIGN_ICONS } from '@/ui/common/icons';
 import { common } from './helpers';
+import { TokenPicker } from './SystemSections';
 
 const WEIGHTS = [
   { value: 100, label: 'Thin 100' },
@@ -41,6 +42,7 @@ export function TypographySection({ nodes }: { nodes: TextNode[] }) {
       {single && (
         <TextField multiline testId="insp-characters" value={single.characters} onChange={(v) => set({ characters: v })} />
       )}
+      <TokenPicker nodes={nodes} binding="text" />
       <SelectField testId="insp-font" title={t('insp.font')} value={family} options={fontOptions} onChange={(v) => set({ fontFamily: v })} />
       <div className="grid grid-cols-2 gap-2">
         <SelectField

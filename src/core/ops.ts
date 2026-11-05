@@ -17,13 +17,26 @@ import {
   PageSchema,
   STRUCTURAL_KEYS,
   isContainer,
+  BreakpointSchema,
+  ColorTokenSchema,
+  InstanceOverrideSchema,
+  NumberTokenSchema,
+  ResponsiveOverrideSchema,
+  ShadowTokenSchema,
+  TextTokenSchema,
   WorkflowEdgeSchema,
   WorkflowNodeSchema,
   WorkflowSchema,
   type DesignNode,
+  type FrameNode,
+  type InstanceNode,
   type Project,
+  type TokenKind,
   type Workflow,
 } from './schema';
+import { createId } from './ids';
+import { bakeInstance, componentDependencies, enclosingComponents, instancesOf } from './instance';
+import { applyResponsive, applyTokens } from './resolve';
 import { getPage } from './tree';
 import { parseParams } from './workflow/catalog';
 import { validateConnection } from './workflow/graph';
@@ -55,6 +68,32 @@ export const DocOpSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('addAsset'), asset: AssetMetaSchema }),
   z.object({ type: z.literal('removeAsset'), id: IdSchema }),
   z.object({ type: z.literal('renameProject'), name: z.string().max(200) }),
+  // Design tokens
+  z.object({
+    type: z.literal('upsertToken'),
+    token: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('colors'), value: ColorTokenSchema }),
+      z.object({ kind: z.literal('text'), value: TextTokenSchema }),
+      z.object({ kind: z.literal('spacing'), value: NumberTokenSchema }),
+      z.object({ kind: z.literal('radius'), value: NumberTokenSchema }),
+      z.object({ kind: z.literal('shadows'), value: ShadowTokenSchema }),
+    ]),
+  }),
+  z.object({ type: z.literal('deleteToken'), kind: z.enum(['colors', 'text', 'spacing', 'radius', 'shadows']), id: IdSchema }),
+  // Breakpoints & responsive overrides
+  z.object({ type: z.literal('setBreakpoints'), breakpoints: z.array(BreakpointSchema).max(12) }),
+  z.object({ type: z.literal('setResponsive'), id: IdSchema, breakpointId: IdSchema, props: ResponsiveOverrideSchema }),
+  z.object({ type: z.literal('clearResponsive'), id: IdSchema, breakpointId: IdSchema, keys: z.array(z.string()).optional() }),
+  // Components & instances
+  z.object({
+    type: z.literal('setComponent'),
+    id: IdSchema,
+    component: z.object({ set: z.string().max(100), variant: z.record(z.string().min(1).max(40), z.string().max(40)), description: z.string().max(500) }).nullable(),
+  }),
+  z.object({ type: z.literal('setInstanceComponent'), id: IdSchema, componentId: IdSchema }),
+  z.object({ type: z.literal('setInstanceOverride'), id: IdSchema, sourceId: IdSchema, props: InstanceOverrideSchema }),
+  z.object({ type: z.literal('resetInstanceOverride'), id: IdSchema, sourceId: IdSchema.optional() }),
+  z.object({ type: z.literal('detachInstance'), id: IdSchema }),
   // Workflows
   z.object({ type: z.literal('createWorkflow'), workflow: WorkflowSchema, index: IndexSchema }),
   z.object({ type: z.literal('updateWorkflow'), id: IdSchema, props: z.object({ name: z.string().max(200) }).partial() }),
@@ -106,6 +145,45 @@ function wouldCreateCycle(draft: Project, nodeId: string, newParentId: string): 
   return false;
 }
 
+const TOKEN_KIND_OF_BINDING: Record<string, TokenKind> = { fill: 'colors', stroke: 'colors', text: 'text', radius: 'radius', gap: 'spacing', padding: 'spacing', shadow: 'shadows' };
+
+function checkBindings(draft: Project, node: DesignNode) {
+  for (const [key, tokenId] of Object.entries(node.bindings ?? {})) {
+    const kind = TOKEN_KIND_OF_BINDING[key];
+    if (!kind) throw new OpError(`Unknown binding "${key}"`);
+    if (!(draft.tokens[kind] as { id: string }[]).some((t) => t.id === tokenId)) throw new OpError(`Token ${tokenId} not found`);
+  }
+  for (const bp of Object.keys(node.responsive ?? {})) {
+    if (!draft.breakpoints.some((b) => b.id === bp)) throw new OpError(`Breakpoint ${bp} not found`);
+  }
+}
+
+/** Ensures an instance may reference `componentId` from its position in the tree. */
+function checkInstanceTarget(draft: Project, inst: { id: string; parentId: string }, componentId: string) {
+  const main = draft.nodes[componentId];
+  if (!main || main.type !== 'frame' || !main.component) throw new OpError('Instance must reference a main component');
+  const enclosing = enclosingComponents(draft, inst.parentId);
+  if (enclosing.includes(componentId)) throw new OpError('A component cannot contain an instance of itself');
+  const deps = componentDependencies(draft, componentId);
+  if (enclosing.some((c) => deps.has(c))) throw new OpError('Instance would create a component cycle');
+}
+
+/** Replaces instances (of components in `componentIds`) outside `excluded` with baked layers. */
+function detachInstancesOf(draft: Project, componentIds: Set<string>, excluded: Set<string> = new Set()) {
+  for (const inst of instancesOf(draft, componentIds)) {
+    if (excluded.has(inst.id)) continue;
+    detachInDraft(draft, inst.id);
+  }
+}
+
+function detachInDraft(draft: Project, id: string) {
+  const inst = draft.nodes[id];
+  if (!inst || inst.type !== 'instance') throw new OpError('Not an instance');
+  const baked = bakeInstance(draft, JSON.parse(JSON.stringify(inst)) as InstanceNode, () => createId());
+  if (!baked) throw new OpError('Main component not found');
+  for (const n of baked) draft.nodes[n.id] = n;
+}
+
 function getWorkflow(draft: Project, id: string): Workflow {
   const wf = draft.workflows.find((w) => w.id === id);
   if (!wf) throw new OpError(`Workflow ${id} not found`);
@@ -149,6 +227,11 @@ export function applyOp(draft: Project, op: DocOp): void {
       const list = childListOf(draft, root.parentId);
       for (const n of op.nodes) draft.nodes[n.id] = structuredClone(n);
       insertAt(list, root.id, op.index);
+      for (const n of op.nodes) {
+        checkBindings(draft, n);
+        if (n.type === 'instance') checkInstanceTarget(draft, n, n.componentId);
+        if (n.type === 'instance' && op.nodes.some((x) => x.id === n.componentId)) throw new OpError('An instance cannot reference a component inserted in the same tree');
+      }
       return;
     }
     case 'updateNode': {
@@ -169,11 +252,20 @@ export function applyOp(draft: Project, op: DocOp): void {
       for (const [k, v] of Object.entries(parsed.data)) {
         if (JSON.stringify(target[k]) !== JSON.stringify(v)) target[k] = v;
       }
+      checkBindings(draft, node);
       return;
     }
     case 'deleteNode': {
       const node = draft.nodes[op.id];
       if (!node) throw new OpError(`Node ${op.id} not found`);
+      const subtree = new Set<string>();
+      const walk = (id: string) => {
+        subtree.add(id);
+        draft.nodes[id]?.childIds.forEach(walk);
+      };
+      walk(op.id);
+      const components = new Set([...subtree].filter((id) => { const n = draft.nodes[id]; return n?.type === 'frame' && !!n.component; }));
+      if (components.size) detachInstancesOf(draft, components, subtree);
       removeFrom(childListOf(draft, node.parentId), op.id);
       deleteSubtree(draft, op.id);
       return;
@@ -186,6 +278,15 @@ export function applyOp(draft: Project, op: DocOp): void {
       removeFrom(childListOf(draft, node.parentId), op.id);
       insertAt(target, op.id, op.index);
       node.parentId = op.parentId;
+      const movedInstances: InstanceNode[] = [];
+      const collect = (id: string) => {
+        const n = draft.nodes[id];
+        if (!n) return;
+        if (n.type === 'instance') movedInstances.push(n);
+        n.childIds.forEach(collect);
+      };
+      collect(op.id);
+      for (const inst of movedInstances) checkInstanceTarget(draft, inst, inst.componentId);
       return;
     }
     case 'createPage': {
@@ -229,6 +330,106 @@ export function applyOp(draft: Project, op: DocOp): void {
     }
     case 'renameProject': {
       draft.name = op.name;
+      return;
+    }
+    case 'upsertToken': {
+      const { kind, value } = op.token;
+      const list = draft.tokens[kind] as { id: string; name: string }[];
+      if (list.some((t) => t.id !== value.id && t.name === value.name)) throw new OpError(`A ${kind} token named "${value.name}" already exists`);
+      const i = list.findIndex((t) => t.id === value.id);
+      if (i >= 0) list[i] = structuredClone(value);
+      else list.push(structuredClone(value));
+      return;
+    }
+    case 'deleteToken': {
+      const list = draft.tokens[op.kind] as { id: string }[];
+      const i = list.findIndex((t) => t.id === op.id);
+      if (i < 0) throw new OpError(`Token ${op.id} not found`);
+      // Bake the token's current value into every bound layer before removing it.
+      const tokens = JSON.parse(JSON.stringify(draft.tokens));
+      for (const n of Object.values(draft.nodes)) {
+        const keys = Object.entries(n.bindings ?? {}).filter(([k, id]) => id === op.id && TOKEN_KIND_OF_BINDING[k] === op.kind).map(([k]) => k);
+        if (!keys.length) continue;
+        const plain = JSON.parse(JSON.stringify(n)) as DesignNode;
+        const resolved = applyTokens({ ...plain, bindings: Object.fromEntries(keys.map((k) => [k, op.id])) } as DesignNode, tokens);
+        const target = n as Record<string, unknown>;
+        for (const k of ['fills', 'stroke', 'radius', 'effects', 'layout', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing']) {
+          if (k in resolved) target[k] = (resolved as Record<string, unknown>)[k];
+        }
+        const b = { ...plain.bindings };
+        for (const k of keys) delete (b as Record<string, unknown>)[k];
+        n.bindings = b;
+      }
+      list.splice(i, 1);
+      return;
+    }
+    case 'setBreakpoints': {
+      const ids = new Set(op.breakpoints.map((b) => b.id));
+      if (ids.size !== op.breakpoints.length) throw new OpError('Duplicate breakpoint ids');
+      draft.breakpoints = structuredClone(op.breakpoints);
+      for (const n of Object.values(draft.nodes)) {
+        for (const bp of Object.keys(n.responsive)) if (!ids.has(bp)) delete n.responsive[bp];
+      }
+      return;
+    }
+    case 'setResponsive': {
+      const node = draft.nodes[op.id];
+      if (!node) throw new OpError(`Node ${op.id} not found`);
+      if (!draft.breakpoints.some((b) => b.id === op.breakpointId)) throw new OpError('Breakpoint not found');
+      const merged = { ...(JSON.parse(JSON.stringify(node.responsive[op.breakpointId] ?? {}))), ...structuredClone(op.props) };
+      const plain = JSON.parse(JSON.stringify(node)) as DesignNode;
+      const check = DesignNodeSchema.safeParse(applyResponsive({ ...plain, responsive: { [op.breakpointId]: merged } } as DesignNode, [op.breakpointId]));
+      if (!check.success) throw new OpError(`Invalid responsive override: ${check.error.issues[0]?.path.join('.')} ${check.error.issues[0]?.message}`);
+      node.responsive[op.breakpointId] = merged;
+      return;
+    }
+    case 'clearResponsive': {
+      const node = draft.nodes[op.id];
+      if (!node) throw new OpError(`Node ${op.id} not found`);
+      const o = node.responsive[op.breakpointId];
+      if (!o) return;
+      if (!op.keys) delete node.responsive[op.breakpointId];
+      else {
+        for (const k of op.keys) delete (o as Record<string, unknown>)[k];
+        if (!Object.keys(o).length) delete node.responsive[op.breakpointId];
+      }
+      return;
+    }
+    case 'setComponent': {
+      const node = draft.nodes[op.id];
+      if (!node || node.type !== 'frame') throw new OpError('Only frames can become components');
+      if (op.component === null && node.component) detachInstancesOf(draft, new Set([node.id]));
+      if (op.component && enclosingComponents(draft, node.parentId).length) throw new OpError('Components cannot be nested inside other components');
+      (node as FrameNode).component = op.component ? structuredClone(op.component) : null;
+      return;
+    }
+    case 'setInstanceComponent': {
+      const node = draft.nodes[op.id];
+      if (!node || node.type !== 'instance') throw new OpError('Not an instance');
+      checkInstanceTarget(draft, node, op.componentId);
+      node.componentId = op.componentId;
+      return;
+    }
+    case 'setInstanceOverride': {
+      const node = draft.nodes[op.id];
+      if (!node || node.type !== 'instance') throw new OpError('Not an instance');
+      const src = draft.nodes[op.sourceId];
+      if (!src) throw new OpError('Layer not found in the main component');
+      const merged = { ...(JSON.parse(JSON.stringify(node.overrides[op.sourceId] ?? {}))), ...structuredClone(op.props) };
+      const check = DesignNodeSchema.safeParse({ ...JSON.parse(JSON.stringify(src)), ...merged });
+      if (!check.success) throw new OpError(`Invalid override: ${check.error.issues[0]?.path.join('.')} ${check.error.issues[0]?.message}`);
+      node.overrides[op.sourceId] = merged;
+      return;
+    }
+    case 'resetInstanceOverride': {
+      const node = draft.nodes[op.id];
+      if (!node || node.type !== 'instance') throw new OpError('Not an instance');
+      if (op.sourceId) delete node.overrides[op.sourceId];
+      else node.overrides = {};
+      return;
+    }
+    case 'detachInstance': {
+      detachInDraft(draft, op.id);
       return;
     }
     case 'createWorkflow': {

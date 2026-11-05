@@ -4,7 +4,7 @@ import type { SnapLine, Rect } from '@/core/geometry';
 import type { Project } from '@/core/schema';
 
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'line' | 'text' | 'image';
-export type LeftTab = 'layers' | 'insert' | 'assets';
+export type LeftTab = 'layers' | 'insert' | 'assets' | 'components' | 'tokens' | 'history';
 export type EditorMode = 'design' | 'workflow';
 
 export interface Viewport {
@@ -19,6 +19,9 @@ export const MAX_ZOOM = 64;
 interface EditorState {
   mode: EditorMode;
   setMode: (mode: EditorMode) => void;
+  /** Breakpoint being previewed/edited on the canvas (null = base/desktop). */
+  breakpointId: string | null;
+  setBreakpoint: (id: string | null) => void;
   pageId: string | null;
   selection: string[];
   hoveredId: string | null;
@@ -56,6 +59,8 @@ export const DEFAULT_VIEWPORT: Viewport = { x: 80, y: 80, zoom: 0.5 };
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
   mode: 'design',
+  breakpointId: null,
+  setBreakpoint: (breakpointId) => set({ breakpointId, editingTextId: null }),
   setMode: (mode) => set({ mode, hoveredId: null, editingTextId: null, snapLines: [], marquee: null }),
   pageId: null,
   selection: [],
@@ -72,7 +77,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   toast: null,
 
   reset: (pageId) =>
-    set({ mode: 'design', pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {} }),
+    set({ mode: 'design', breakpointId: null, pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {} }),
   setPage: (pageId) => set({ pageId, selection: [], hoveredId: null, editingTextId: null }),
   select: (ids) => {
     const cur = get().selection;

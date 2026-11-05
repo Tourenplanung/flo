@@ -10,7 +10,7 @@ import {
   Ban,
   Columns3,
 } from 'lucide-react';
-import { alignSelection, parentOrigin, updateNodes, worldRect } from '@/editor/actions';
+import { alignSelection, parentOrigin, setSize, updateNodes, worldRect } from '@/editor/actions';
 import { useT } from '@/i18n';
 import type { AutoLayout, DesignNode, FrameNode, FrameRole, SizingMode } from '@/core/schema';
 import { isInFlow } from '@/core/tree';
@@ -18,6 +18,7 @@ import { getProject, useDocStore } from '@/store/docStore';
 import { useEditorStore } from '@/store/editorStore';
 import { Checkbox, IconButton, MIXED, NumberField, Section, Segmented, SelectField } from '@/ui/common/controls';
 import { common } from './helpers';
+import { TokenPicker } from './SystemSections';
 
 export function AlignRow({ nodes }: { nodes: DesignNode[] }) {
   const t = useT();
@@ -82,7 +83,7 @@ export function GeometrySection({ nodes }: { nodes: DesignNode[] }) {
           testId="insp-w"
           min={0}
           value={common(nodes, (n) => measured(n, 'width'))}
-          onChange={(v) => updateNodes(ids, (n) => ({ width: v, sizing: { ...n.sizing, horizontal: 'fixed' } }), 'w')}
+          onChange={(v) => setSize(ids, { width: v }, 'w')}
         />
         <NumberField
           label="H"
@@ -90,7 +91,7 @@ export function GeometrySection({ nodes }: { nodes: DesignNode[] }) {
           testId="insp-h"
           min={0}
           value={common(nodes, (n) => measured(n, 'height'))}
-          onChange={(v) => updateNodes(ids, (n) => ({ height: v, sizing: { ...n.sizing, vertical: 'fixed' } }), 'h')}
+          onChange={(v) => setSize(ids, { height: v }, 'h')}
         />
       </div>
       {allFlow && <p className="text-[10.5px] leading-4 text-fg-subtle">{t('insp.inFlow')}</p>}
@@ -202,7 +203,9 @@ export function AutoLayoutSection({ frames }: { frames: FrameNode[] }) {
             <NumberField label={<Columns3 size={12} />} title={t('insp.gap')} testId="insp-gap" min={0} value={common(frames, (f) => f.layout.gap)} onChange={(v) => set({ gap: v }, 'gap')} />
             <Checkbox label={t('insp.wrap')} checked={frames.every((f) => f.layout.wrap)} onChange={(v) => set({ wrap: v })} />
           </div>
+          <TokenPicker nodes={frames} binding="gap" />
           <div className="text-[10.5px] text-fg-subtle">{t('insp.padding')}</div>
+          <TokenPicker nodes={frames} binding="padding" />
           <div className="grid grid-cols-4 gap-1.5">
             {['↑', '→', '↓', '←'].map((l, i) => (
               <NumberField key={i} label={l} testId={`insp-pad-${i}`} min={0} precision={0} value={pad(i)} onChange={(v) => setPad(i, v)} />

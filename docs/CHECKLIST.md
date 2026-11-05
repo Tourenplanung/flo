@@ -43,18 +43,35 @@ footer; edit typography, colors, spacing; reorder; resize; save; reload; reopen;
 - AI assistant and prototype preview buttons are visible but disabled and labelled
   "available in an upcoming version".
 
-## Milestone 2 — Design engine 🟡
+## Milestone 2 — Design engine ✅
 
-| Item | Status |
-| --- | --- |
-| Auto layout (direction, gap, padding, alignment, wrap) | ✅ (pulled into M1) |
-| Sizing fixed / hug / fill, min/max constraints | ✅ (pulled into M1) |
-| Undo/redo + document history (in-session) | ✅ (pulled into M1) |
-| Constraints for absolute children (left/right/center/scale) | ⬜ |
-| Breakpoint-specific responsive overrides + preview | ⬜ |
-| Design tokens (colors, type, spacing, radius, shadows, breakpoints) | ⬜ |
-| Components, instances, overrides, variants | ⬜ |
-| Persistent project history panel | ⬜ |
+| Item | Status | Notes |
+| --- | --- | --- |
+| Auto layout (direction, gap, padding, alignment, wrap) | ✅ | |
+| Sizing fixed / hug / fill, min/max constraints | ✅ | |
+| Constraints for absolute children (start/end/center/stretch/scale) | ✅ | Applied on resize and mapped to CSS |
+| Design tokens: colors, text styles, spacing, radius, shadows | ✅ | Stili panel; “from selection” |
+| Token bindings with central updates | ✅ | Resolved at render; editing a bound value detaches it |
+| Breakpoints (desktop-first) with per-breakpoint overrides | ✅ | Breakpoint bar; preview widths; editable list |
+| Components, instances, per-layer overrides | ✅ | Text, color, visibility, size/weight, icon, image |
+| Variants (component sets with properties) and variant switching | ✅ | |
+| Detach instance; deleting a main component detaches its instances | ✅ | No orphaned instances |
+| Undo/redo + project history panel, persisted across reloads | ✅ | Restored entries are re-validated before use |
+| HTML export: token CSS variables, @media overrides, expanded instances | ✅ | |
+| Workflow: design system can write tokens; apply styles binds layers | ✅ | |
+
+**Acceptance:** users can create reusable and responsive layouts — verified by
+`e2e/design-system.spec.ts` and `src/core/__tests__/designEngine.test.ts`.
+
+### Known limitations after M2
+
+- Breakpoint preview resizes top-level frames wider than the breakpoint (“screens”);
+  smaller top-level frames keep their size.
+- Instance overrides cover content and appearance (text, colors, visibility, size, weight,
+  icon, image); layout inside an instance follows the main component.
+- Overrides are one level deep for nested instances (inner instances follow their own main).
+- Constraints apply to absolute children of frames/groups; while a breakpoint is active,
+  children adapt through CSS only (stored positions refer to the base layout).
 
 ## Milestone 3 — Workflow engine ✅
 
@@ -103,4 +120,4 @@ accessibility review, security review, in-app third-party license notices, deplo
 
 ## Test totals
 
-49 unit/component tests (Vitest) · 5 end-to-end tests (Playwright).
+59 unit/component tests (Vitest) · 6 end-to-end tests (Playwright).

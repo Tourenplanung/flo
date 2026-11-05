@@ -3,10 +3,14 @@
  * and dispatch them as single undoable transactions.
  */
 import { createFrame, createGroup, type NodeTree } from '@/core/factory';
+import { constraintOps } from '@/core/constraints';
+import { parseVirtualId, VSEP } from '@/core/instance';
+import { resolveNode } from '@/core/resolve';
+import { activeChain, effectiveNode } from './effective';
 import { unionRects, type Point, type Rect } from '@/core/geometry';
 import { cloneSubtree } from '@/core/clone';
 import { op, type DocOp } from '@/core/ops';
-import { isContainer, type DesignNode, type Project } from '@/core/schema';
+import { INSTANCE_OVERRIDE_KEYS, isContainer, RESPONSIVE_KEYS, type DesignNode, type FrameNode, type Project } from '@/core/schema';
 import { collectSubtree, getChildIds, isInFlow, sortByDocumentOrder, topLevelOnly } from '@/core/tree';
 import { dispatch, getProject, useDocStore } from '@/store/docStore';
 import { getViewport, useEditorStore } from '@/store/editorStore';
@@ -315,10 +319,11 @@ export function nudgeSelection(dx: number, dy: number) {
   const project = getProject();
   if (!project) return;
   const ops: DocOp[] = [];
+  const chain = activeChain(project);
   for (const id of selectedTopLevel(project)) {
-    const n = project.nodes[id]!;
+    const n = effectiveNode(project, id, chain)!;
     if (n.locked || isInFlow(project, n)) continue;
-    ops.push(op.update(id, { x: n.x + dx, y: n.y + dy }));
+    ops.push(...writeOps(project, id, { x: n.x + dx, y: n.y + dy }));
   }
   if (ops.length) dispatch(ops, { label: 'Nudge', mergeKey: 'nudge' });
 }
@@ -340,8 +345,9 @@ export function alignSelection(mode: AlignMode) {
   } else bounds = unionRects(ids.map((id) => worldRect(project, id)).filter(Boolean) as Rect[]);
   if (!bounds) return;
   const ops: DocOp[] = [];
+  const chain = activeChain(project);
   for (const id of ids) {
-    const n = project.nodes[id]!;
+    const n = effectiveNode(project, id, chain)!;
     const r = worldRect(project, id);
     if (!r) continue;
     let x = r.x;
@@ -352,7 +358,7 @@ export function alignSelection(mode: AlignMode) {
     if (mode === 'top') y = bounds.y;
     if (mode === 'vcenter') y = bounds.y + bounds.height / 2 - r.height / 2;
     if (mode === 'bottom') y = bounds.y + bounds.height - r.height;
-    ops.push(op.update(id, { x: Math.round(n.x + (x - r.x)), y: Math.round(n.y + (y - r.y)) }));
+    ops.push(...writeOps(project, id, { x: Math.round(n.x + (x - r.x)), y: Math.round(n.y + (y - r.y)) }));
   }
   dispatch(ops, { label: 'Align' });
 }
@@ -409,14 +415,67 @@ export function toggleLock(ids = editor().selection) {
 
 /* ---------------- updates ---------------- */
 
+const pick = (o: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => keys.includes(k)));
+const omit = (o: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+
+const TEXT_KEYS = ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing'];
+
+/** Editing a token-bound value directly detaches that binding (like most design tools). */
+function detachEditedBindings(project: Project, node: DesignNode, props: Record<string, unknown>): Record<string, unknown> {
+  if ('bindings' in props || !Object.keys(node.bindings).length) return props;
+  const b = { ...node.bindings } as Record<string, string>;
+  const resolved = resolveNode(node, project.tokens, []);
+  const changed = (k: string) => k in props && JSON.stringify(props[k]) !== JSON.stringify((resolved as Record<string, unknown>)[k]);
+  if (b.fill && changed('fills')) delete b.fill;
+  if (b.stroke && changed('stroke')) delete b.stroke;
+  if (b.radius && changed('radius')) delete b.radius;
+  if (b.shadow && changed('effects')) delete b.shadow;
+  if (b.text && TEXT_KEYS.some(changed)) delete b.text;
+  if (resolved.type === 'frame' && props.layout) {
+    const l = props.layout as FrameNode['layout'];
+    if (b.gap && l.gap !== resolved.layout.gap) delete b.gap;
+    if (b.padding && JSON.stringify(l.padding) !== JSON.stringify(resolved.layout.padding)) delete b.padding;
+  }
+  return Object.keys(b).length !== Object.keys(node.bindings).length ? { ...props, bindings: b } : props;
+}
+
+/**
+ * Translates a property edit into ops, honouring the editing context:
+ * - layers inside instances → instance overrides (only overridable properties);
+ * - an active breakpoint → responsive overrides for responsive properties;
+ * - token-bound values edited directly → binding detached.
+ */
+export function writeOps(project: Project, id: string, props: Record<string, unknown>): DocOp[] {
+  const v = parseVirtualId(id);
+  if (v) {
+    if (v.sourceId.includes(VSEP)) return [];
+    const picked = pick(props, INSTANCE_OVERRIDE_KEYS);
+    return Object.keys(picked).length ? [{ type: 'setInstanceOverride', id: v.instanceId, sourceId: v.sourceId, props: picked }] : [];
+  }
+  const node = project.nodes[id];
+  if (!node) return [];
+  const bp = editor().breakpointId;
+  if (bp && project.breakpoints.some((b) => b.id === bp)) {
+    const resp = pick(props, RESPONSIVE_KEYS);
+    const rest = detachEditedBindings(project, node, omit(props, RESPONSIVE_KEYS));
+    const ops: DocOp[] = [];
+    if (Object.keys(resp).length) ops.push({ type: 'setResponsive', id, breakpointId: bp, props: resp });
+    if (Object.keys(rest).length) ops.push({ type: 'updateNode', id, props: rest });
+    return ops;
+  }
+  return [{ type: 'updateNode', id, props: detachEditedBindings(project, node, props) }];
+}
+
 /** Updates a property on every selected node (one undo step per field while typing). */
 export function updateNodes(ids: string[], props: Partial<DesignNode> | ((n: DesignNode) => Partial<DesignNode>), mergeKey?: string) {
   const project = getProject();
   if (!project) return;
-  const ops = ids
-    .map((id) => project.nodes[id])
-    .filter(Boolean)
-    .map((n) => op.update(n!.id, typeof props === 'function' ? props(n!) : props));
+  const chain = activeChain(project);
+  const ops = ids.flatMap((id) => {
+    const n = effectiveNode(project, id, chain);
+    if (!n) return [];
+    return writeOps(project, id, (typeof props === 'function' ? props(n) : props) as Record<string, unknown>);
+  });
   if (!ops.length) return;
   const res = dispatch(ops, { label: 'Edit', mergeKey: mergeKey ? `${mergeKey}:${ids.join(',')}` : undefined });
   if (!res.ok) editor().showToast(res.error, 'error');
@@ -427,4 +486,20 @@ export function undo() {
 }
 export function redo() {
   useDocStore.getState().redo();
+}
+
+/** Sets width/height (fixed sizing); children with constraints follow when editing the base layout. */
+export function setSize(ids: string[], size: { width?: number; height?: number }, mergeKey?: string) {
+  const project = getProject();
+  if (!project) return;
+  const chain = activeChain(project);
+  const ops: DocOp[] = [];
+  for (const id of ids) {
+    const n = effectiveNode(project, id, chain);
+    if (!n) continue;
+    const props: Partial<DesignNode> = { ...size, sizing: { horizontal: size.width !== undefined ? 'fixed' : n.sizing.horizontal, vertical: size.height !== undefined ? 'fixed' : n.sizing.vertical } };
+    ops.push(...writeOps(project, id, props as Record<string, unknown>));
+    if (!editor().breakpointId) ops.push(...constraintOps(project, id, size.width ?? n.width, size.height ?? n.height));
+  }
+  if (ops.length) dispatch(ops, { label: 'Resize', mergeKey: mergeKey ? `${mergeKey}:${ids.join(',')}` : undefined });
 }

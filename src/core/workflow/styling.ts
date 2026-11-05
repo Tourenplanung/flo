@@ -1,5 +1,6 @@
 /** Design-system derivation and deterministic style application. */
 import { solid } from '../factory';
+import type { DocOp } from '../ops';
 import type { DesignNode, FrameNode, Paint, Project } from '../schema';
 import type { StylesValue } from './catalog';
 import { contrastRatio, hexToRgb, luminance, mix, readableOn } from './color';
@@ -118,12 +119,59 @@ export function styleNode(node: DesignNode, ancestors: DesignNode[], s: StylesVa
   return props;
 }
 
+/** Token ops for a derived design system (stable ids per workflow node, names prefixed "ds/"). */
+export function designSystemTokenOps(nodeId: string, s: StylesValue): { ops: DocOp[]; tokenIds: NonNullable<StylesValue['tokenIds']> } {
+  const id = (k: string) => `ds-${nodeId.slice(0, 12)}-${k}`;
+  const ops: DocOp[] = [];
+  const colors: Record<string, string> = {};
+  for (const [k, v] of Object.entries(s.colors)) {
+    colors[k] = id(`c-${k}`);
+    ops.push({ type: 'upsertToken', token: { kind: 'colors', value: { id: colors[k]!, name: `ds/${k}`, value: v, opacity: 1 } } });
+  }
+  const text: Record<string, string> = {};
+  for (const [k, size] of Object.entries(s.sizes)) {
+    text[k] = id(`t-${k}`);
+    const heading = k.startsWith('h');
+    ops.push({
+      type: 'upsertToken',
+      token: {
+        kind: 'text',
+        value: { id: text[k]!, name: `ds/${k}`, fontFamily: heading ? s.fonts.heading : s.fonts.body, fontSize: size, fontWeight: heading ? 700 : 400, lineHeight: { unit: 'percent', value: heading ? 115 : 150 }, letterSpacing: k === 'h1' ? -1 : heading ? -0.3 : 0 },
+      },
+    });
+  }
+  const radius = id('r');
+  ops.push({ type: 'upsertToken', token: { kind: 'radius', value: { id: radius, name: 'ds/radius', value: s.radius } } });
+  return { ops, tokenIds: { colors, text, radius } };
+}
+
+/** Token bindings matching the values chosen by `styleNode` (when the styles came with tokens). */
+function bindingsFor(node: DesignNode, props: Partial<DesignNode>, s: StylesValue): DesignNode['bindings'] | undefined {
+  const ids = s.tokenIds;
+  if (!ids) return undefined;
+  const b = { ...node.bindings };
+  const top = props.fills?.[props.fills.length - 1];
+  if (top?.type === 'solid' && top.opacity === 1) {
+    const key = Object.entries(s.colors).find(([, v]) => v === top.color)?.[0];
+    if (key && ids.colors[key]) b.fill = ids.colors[key];
+  }
+  if (node.type === 'text') {
+    const key = Object.entries(s.sizes).find(([k, v]) => v === (props as { fontSize?: number }).fontSize && (k.startsWith('h') === /^h[1-6]$/.test(node.role)))?.[0];
+    if (key && ids.text[key]) b.text = ids.text[key];
+  }
+  if (ids.radius && props.radius && node.type !== 'frame') b.radius = ids.radius;
+  if (ids.radius && props.radius && node.type === 'frame' && (node as FrameNode).role === 'button') b.radius = ids.radius;
+  return b;
+}
+
 /** Applies `styleNode` to every node of the given subtrees, mutating plain node objects. */
 export function styleTree(nodes: Record<string, DesignNode>, rootIds: string[], s: StylesValue) {
   const visit = (id: string, ancestors: DesignNode[]) => {
     const n = nodes[id];
     if (!n) return;
-    Object.assign(n, styleNode(n, ancestors, s));
+    const props = styleNode(n, ancestors, s);
+    const bindings = bindingsFor(n, props, s);
+    Object.assign(n, props, bindings ? { bindings } : {});
     n.childIds.forEach((c) => visit(c, [...ancestors, n]));
   };
   rootIds.forEach((id) => visit(id, []));
@@ -136,6 +184,8 @@ export function styleUpdates(project: Project, rootIds: string[], s: StylesValue
     const n = project.nodes[id];
     if (!n) return;
     const props = styleNode(n, ancestors, s);
+    const bindings = bindingsFor(n, props, s);
+    if (bindings) props.bindings = bindings;
     if (Object.keys(props).length) out.push({ id, props });
     n.childIds.forEach((c) => visit(c, [...ancestors, n]));
   };

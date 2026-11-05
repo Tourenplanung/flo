@@ -1,6 +1,6 @@
 import { useT } from '@/i18n';
 import { createFrame, FRAME_PRESETS } from '@/core/factory';
-import type { FrameNode, IconNode, ImageNode, LineNode, TextNode } from '@/core/schema';
+import type { FrameNode, IconNode, ImageNode, InstanceNode, LineNode, TextNode } from '@/core/schema';
 import { insertTree } from '@/editor/actions';
 import { dispatch, getProject, useDocStore } from '@/store/docStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -9,6 +9,8 @@ import { EffectsSection, FillSection, LayerSection, StrokeSection } from './Appe
 import { IconSection, ImageSection, LineSection, TypographySection } from './ContentSections';
 import { useSelectedNodes } from './helpers';
 import { AlignRow, AutoLayoutSection, GeometrySection } from './LayoutSection';
+import { BreakpointBanner, ComponentSection, ConstraintsSection, InstanceLayerInspector, InstanceSection } from './SystemSections';
+import { isVirtualId } from '@/core/instance';
 import { zoomToRect } from '../viewportActions';
 
 /** Places a new top-level frame to the right of existing content on the page. */
@@ -86,13 +88,26 @@ export function Inspector() {
     );
   }
 
+  if (nodes.some((n) => isVirtualId(n.id))) {
+    return nodes.length === 1 ? (
+      <div data-testid="inspector">
+        <InstanceLayerInspector node={nodes[0]!} />
+      </div>
+    ) : (
+      <div data-testid="inspector" className="px-3 py-4 text-[11px] text-fg-subtle">
+        {t('insp.multiple', { n: nodes.length })}
+      </div>
+    );
+  }
+
   const frames = nodes.filter((n): n is FrameNode => n.type === 'frame');
+  const instances = nodes.filter((n): n is InstanceNode => n.type === 'instance');
   const texts = nodes.filter((n): n is TextNode => n.type === 'text');
   const images = nodes.filter((n): n is ImageNode => n.type === 'image');
   const icons = nodes.filter((n): n is IconNode => n.type === 'icon');
   const lines = nodes.filter((n): n is LineNode => n.type === 'line');
   const all = <T,>(list: T[]) => list.length === nodes.length;
-  const isGroupOnly = nodes.every((n) => n.type === 'group');
+  const isGroupOnly = nodes.every((n) => n.type === 'group' || n.type === 'instance');
 
   return (
     <div data-testid="inspector">
@@ -107,8 +122,12 @@ export function Inspector() {
           t('insp.multiple', { n: nodes.length })
         )}
       </div>
+      <BreakpointBanner ids={nodes.map((n) => n.id)} />
       <AlignRow nodes={nodes} />
       <GeometrySection nodes={nodes} />
+      <ConstraintsSection nodes={nodes} />
+      {instances.length === 1 && nodes.length === 1 && <InstanceSection node={instances[0]!} />}
+      {frames.length === 1 && nodes.length === 1 && <ComponentSection frame={frames[0]!} />}
       {all(frames) && <AutoLayoutSection frames={frames} />}
       {!isGroupOnly && <LayerSection nodes={nodes} />}
       {all(texts) && <TypographySection nodes={texts} />}

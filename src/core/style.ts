@@ -128,6 +128,37 @@ export function nodeStyle(node: DesignNode, ctx: StyleContext): CSSDecl {
     css.left = px(node.x);
     css.top = px(node.y);
   }
+  // Constraints: express the position relative to the parent's edges so the layout adapts
+  // when the parent changes size (breakpoints, exported responsive pages).
+  const applyConstraints = !inFlow && parent && (parent.type === 'frame' || parent.type === 'group') && parent.sizing.horizontal !== 'hug';
+  let stretchX = false;
+  let stretchY = false;
+  if (applyConstraints && parent) {
+    const border = parent.stroke?.visible && parent.type === 'frame' ? parent.stroke.width : 0;
+    const innerW = parent.width - 2 * border;
+    const innerH = parent.height - 2 * border;
+    const c = node.constraints;
+    if (c.horizontal === 'end') {
+      delete css.left;
+      css.right = px(innerW - node.x - node.width);
+    } else if (c.horizontal === 'center') css.left = `calc(50% + ${px(node.x - innerW / 2)})`;
+    else if (c.horizontal === 'stretch') {
+      css.right = px(innerW - node.x - node.width);
+      stretchX = true;
+    } else if (c.horizontal === 'scale' && innerW > 0) css.left = `${(node.x / innerW) * 100}%`;
+    if (parent.sizing.vertical !== 'hug') {
+      if (c.vertical === 'end') {
+        delete css.top;
+        css.bottom = px(innerH - node.y - node.height);
+      } else if (c.vertical === 'center') css.top = `calc(50% + ${px(node.y - innerH / 2)})`;
+      else if (c.vertical === 'stretch') {
+        css.bottom = px(innerH - node.y - node.height);
+        stretchY = true;
+      } else if (c.vertical === 'scale' && innerH > 0) css.top = `${(node.y / innerH) * 100}%`;
+    }
+    if (c.horizontal === 'scale' && innerW > 0 && node.sizing.horizontal === 'fixed') css.__scaleW = `${(node.width / innerW) * 100}%`;
+    if (c.vertical === 'scale' && innerH > 0 && node.sizing.vertical === 'fixed') css.__scaleH = `${(node.height / innerH) * 100}%`;
+  }
 
   // Sizing
   const horizontalIsPrimary = parentLayout === 'horizontal';
@@ -158,6 +189,12 @@ export function nodeStyle(node: DesignNode, ctx: StyleContext): CSSDecl {
   };
   sizeAxis('horizontal');
   sizeAxis('vertical');
+  if (stretchX && node.sizing.horizontal === 'fixed') css.width = 'auto';
+  if (stretchY && node.sizing.vertical === 'fixed') css.height = 'auto';
+  if (css.__scaleW) css.width = css.__scaleW;
+  if (css.__scaleH) css.height = css.__scaleH;
+  delete css.__scaleW;
+  delete css.__scaleH;
   if (node.minWidth != null) css.minWidth = px(node.minWidth);
   if (node.maxWidth != null) css.maxWidth = px(node.maxWidth);
   if (node.minHeight != null) css.minHeight = px(node.minHeight);

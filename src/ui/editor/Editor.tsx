@@ -10,7 +10,11 @@ import { cx } from '@/ui/common/controls';
 import { Toast } from '@/ui/common/Toast';
 import { Canvas } from './canvas/Canvas';
 import { Inspector } from './inspector/Inspector';
+import { Component, History, Image as ImageIcon, Layers, Palette, PlusSquare } from 'lucide-react';
 import { AssetsPanel } from './panels/AssetsPanel';
+import { ComponentsPanel } from './panels/ComponentsPanel';
+import { HistoryPanel } from './panels/HistoryPanel';
+import { TokensPanel } from './panels/TokensPanel';
 import { InsertPanel } from './panels/InsertPanel';
 import { LayersPanel } from './panels/LayersPanel';
 import { PagesPanel } from './panels/PagesPanel';
@@ -28,12 +32,11 @@ export function Editor({ projectId, onExit }: { projectId: string; onExit: () =>
 
   useEffect(() => {
     let alive = true;
-    projectRepo
-      .load(projectId)
-      .then((p) => {
+    Promise.all([projectRepo.load(projectId), projectRepo.loadHistory(projectId).catch(() => null)])
+      .then(([p, history]) => {
         if (!alive) return;
         if (!p) return setError(t('error.notFound'));
-        useDocStore.getState().load(p);
+        useDocStore.getState().load(p, history);
         useEditorStore.getState().reset(p.pages[0]!.id);
         void useWorkflowStore.getState().init(p.id);
         // Fit content once it has been rendered and measured.
@@ -67,10 +70,13 @@ function EditorShell({ onExit }: { onExit: () => void }) {
   useEditorShortcuts(saveNow);
   const leftTab = useEditorStore((s) => s.leftTab);
   const mode = useEditorStore((s) => s.mode);
-  const tabs: { id: LeftTab; label: string }[] = [
-    { id: 'layers', label: t('left.layers') },
-    { id: 'insert', label: t('left.insert') },
-    { id: 'assets', label: t('left.assets') },
+  const tabs: { id: LeftTab; label: string; icon: typeof Layers }[] = [
+    { id: 'layers', label: t('left.layers'), icon: Layers },
+    { id: 'insert', label: t('left.insert'), icon: PlusSquare },
+    { id: 'assets', label: t('left.assets'), icon: ImageIcon },
+    { id: 'components', label: t('left.components'), icon: Component },
+    { id: 'tokens', label: t('left.tokens'), icon: Palette },
+    { id: 'history', label: t('left.history'), icon: History },
   ];
 
   return (
@@ -95,12 +101,15 @@ function EditorShell({ onExit }: { onExit: () => void }) {
                 aria-selected={leftTab === tab.id}
                 data-testid={`tab-${tab.id}`}
                 onClick={() => useEditorStore.getState().setLeftTab(tab.id)}
+                title={tab.label}
+                aria-label={tab.label}
                 className={cx(
-                  'h-6 rounded px-2 text-[11px]',
+                  'flex h-6 items-center gap-1 rounded px-1.5 text-[11px]',
                   leftTab === tab.id ? 'bg-field font-semibold text-fg' : 'text-fg-muted hover:text-fg',
                 )}
               >
-                {tab.label}
+                <tab.icon size={13} />
+                {leftTab === tab.id && <span className="max-w-20 truncate">{tab.label}</span>}
               </button>
             ))}
           </div>
@@ -108,6 +117,9 @@ function EditorShell({ onExit }: { onExit: () => void }) {
             {leftTab === 'layers' && <LayersPanel />}
             {leftTab === 'insert' && <InsertPanel />}
             {leftTab === 'assets' && <AssetsPanel />}
+            {leftTab === 'components' && <ComponentsPanel />}
+            {leftTab === 'tokens' && <TokensPanel />}
+            {leftTab === 'history' && <HistoryPanel />}
           </div>
         </aside>
         <main className="relative min-w-0 flex-1">

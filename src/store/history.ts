@@ -20,6 +20,8 @@ export interface HistoryEntry {
   /** Selection to restore when this entry is undone/redone. */
   selectionBefore: string[];
   selectionAfter: string[];
+  /** Entry restored from storage: results are re-validated before use. */
+  restored?: boolean;
 }
 
 export interface DispatchOptions {

@@ -5,6 +5,7 @@ import type { DesignNode, Effect, Paint, Stroke } from '@/core/schema';
 import { solid } from '@/core/factory';
 import { ColorField, IconButton, MIXED, NumberField, Section, SelectField } from '@/ui/common/controls';
 import { common } from './helpers';
+import { TokenPicker } from './SystemSections';
 
 /* ---------------------------------------------------------------- Layer */
 
@@ -40,6 +41,7 @@ export function LayerSection({ nodes }: { nodes: DesignNode[] }) {
           />
         )}
       </div>
+      {hasRadius && <TokenPicker nodes={nodes} binding="radius" />}
       {hasRadius && (
         <div className="grid grid-cols-4 gap-1.5">
           {['◤', '◥', '◢', '◣'].map((l, i) => (
@@ -85,6 +87,7 @@ export function FillSection({ nodes }: { nodes: DesignNode[] }) {
         </IconButton>
       }
     >
+      <TokenPicker nodes={nodes} binding="fill" />
       {fills === MIXED ? (
         <p className="text-[11px] text-fg-subtle">{t('insp.mixed')}</p>
       ) : (
@@ -191,6 +194,7 @@ export function StrokeSection({ nodes }: { nodes: DesignNode[] }) {
         ) : null
       }
     >
+      {stroke && <TokenPicker nodes={nodes} binding="stroke" />}
       {stroke === MIXED && <p className="text-[11px] text-fg-subtle">{t('insp.mixed')}</p>}
       {stroke && stroke !== MIXED && (
         <div className="flex items-center gap-1">
@@ -239,6 +243,7 @@ export function EffectsSection({ nodes }: { nodes: DesignNode[] }) {
         </IconButton>
       }
     >
+      <TokenPicker nodes={nodes} binding="shadow" />
       {effects === MIXED && <p className="text-[11px] text-fg-subtle">{t('insp.mixed')}</p>}
       {effects !== MIXED &&
         effects.map((fx, i) => {

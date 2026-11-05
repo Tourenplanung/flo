@@ -2,6 +2,7 @@
  * Schema migrations. Each migration upgrades raw data from version N to N+1.
  * Raw input is untrusted; the final result is always validated by `parseProject`.
  */
+import { defaultBreakpoints, emptyTokens } from './factory';
 import { SCHEMA_VERSION, type Project } from './schema';
 import { ProjectValidationError, parseProject } from './validate';
 
@@ -20,6 +21,26 @@ export const migrations: Record<number, Migration> = {
   }),
   // Version 2 adds workflows (Milestone 3).
   1: (raw) => ({ ...raw, schemaVersion: 2, workflows: Array.isArray(raw.workflows) ? raw.workflows : [] }),
+  // Version 3 adds design tokens, breakpoints, constraints, bindings, responsive overrides and components.
+  2: (raw) => {
+    const nodes: Record<string, unknown> = {};
+    if (raw.nodes && typeof raw.nodes === 'object') {
+      for (const [id, n] of Object.entries(raw.nodes as Record<string, Record<string, unknown>>)) {
+        if (!n || typeof n !== 'object') {
+          nodes[id] = n;
+          continue;
+        }
+        nodes[id] = {
+          constraints: { horizontal: 'start', vertical: 'start' },
+          bindings: {},
+          responsive: {},
+          ...(n.type === 'frame' ? { component: null } : {}),
+          ...n,
+        };
+      }
+    }
+    return { ...raw, schemaVersion: 3, nodes, tokens: raw.tokens ?? emptyTokens(), breakpoints: raw.breakpoints ?? defaultBreakpoints() };
+  },
 };
 
 export function migrateProject(input: unknown): Project {

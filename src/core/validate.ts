@@ -1,5 +1,6 @@
 /** Structural integrity checks beyond what the Zod schema can express. */
 import { ProjectSchema, isContainer, type Project, type Workflow } from './schema';
+import { componentDependencies, enclosingComponents } from './instance';
 import { parseParams } from './workflow/catalog';
 import { validateConnection } from './workflow/graph';
 
@@ -52,6 +53,31 @@ export function checkIntegrity(project: Project): IntegrityIssue[] {
       cur = n.parentId;
     }
   }
+  // Tokens, bindings, breakpoints, components.
+  const bpIds = new Set(project.breakpoints.map((b) => b.id));
+  if (bpIds.size !== project.breakpoints.length) err('Duplicate breakpoint ids');
+  const tokenIds: Record<string, Set<string>> = {};
+  for (const [kind, list] of Object.entries(project.tokens)) {
+    tokenIds[kind] = new Set((list as { id: string }[]).map((t) => t.id));
+    if (tokenIds[kind]!.size !== (list as unknown[]).length) err(`Duplicate ${kind} token ids`);
+  }
+  const bindingKind: Record<string, string> = { fill: 'colors', stroke: 'colors', text: 'text', radius: 'radius', gap: 'spacing', padding: 'spacing', shadow: 'shadows' };
+  for (const node of Object.values(project.nodes)) {
+    for (const [k, id] of Object.entries(node.bindings)) {
+      if (!tokenIds[bindingKind[k] ?? '']?.has(id as string)) issues.push({ severity: 'warning', message: `Node ${node.id} is bound to missing token ${id}` });
+    }
+    for (const bp of Object.keys(node.responsive)) if (!bpIds.has(bp)) err(`Node ${node.id} has overrides for unknown breakpoint ${bp}`);
+    if (node.type === 'instance') {
+      const main = project.nodes[node.componentId];
+      if (!main || main.type !== 'frame' || !main.component) err(`Instance ${node.id} references a missing component`);
+      else {
+        const enclosing = enclosingComponents(project, node.parentId);
+        const deps = componentDependencies(project, node.componentId);
+        if (enclosing.some((c) => deps.has(c))) err(`Instance ${node.id} creates a component cycle`);
+      }
+    }
+  }
+
   // Workflows: known node kinds, valid params, valid typed acyclic connections.
   const wfIds = new Set<string>();
   for (const wf of project.workflows) {

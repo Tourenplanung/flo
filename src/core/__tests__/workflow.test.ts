@@ -201,3 +201,24 @@ describe('design system', () => {
     expect(readableOn('#0B5FFF')).toBe('#FFFFFF');
   });
 });
+
+describe('design system → tokens', () => {
+  it('writes project tokens and binds styled layers to them', async () => {
+    const { resolveNode } = await import('../resolve');
+    const { project, wf, ids } = pipeline();
+    const host = makeHost(project);
+    host.apply([{ type: 'updateWorkflowNode', workflowId: wf.id, id: ids.ds.id, props: { params: { writeTokens: true } } }], 'x');
+    const cache = new Map<string, CacheEntry>();
+    const res = await runWorkflow(host.project.workflows[0]!, cache, host);
+    expect(res.errors).toEqual({});
+    expect(host.project.tokens.colors.map((c) => c.name)).toContain('ds/primary');
+    const styled = (cache.get(ids.styled.id)!.outputs.design as DesignValue).frameIds;
+    const buttons = Object.values(host.project.nodes).filter((n) => n.type === 'frame' && n.role === 'button' && styled.some((r) => host.project.nodes[r] && JSON.stringify(n).length > 0) && n.bindings.fill);
+    expect(buttons.length).toBeGreaterThan(0);
+    // Editing the token restyles the bound layers.
+    const primary = host.project.tokens.colors.find((c) => c.name === 'ds/primary')!;
+    host.apply([{ type: 'upsertToken', token: { kind: 'colors', value: { ...primary, value: '#00A86B' } } }], 'edit token');
+    const r = resolveNode(host.project.nodes[buttons[0]!.id]!, host.project.tokens, []);
+    expect(r.fills.at(-1)).toMatchObject({ color: '#00A86B' });
+  });
+});

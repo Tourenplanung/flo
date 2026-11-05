@@ -7,6 +7,8 @@ export interface ProjectRecord {
   updatedAt: number;
   /** The validated project document (see core/schema). Stored as plain data. */
   doc: unknown;
+  /** Undo/redo history (Immer patches), restored on reopen. Optional. */
+  history?: unknown;
 }
 
 export interface AssetRecord {

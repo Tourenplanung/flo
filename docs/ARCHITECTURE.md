@@ -79,6 +79,27 @@ Gestures (move, resize, draw, marquee, pan, guides) are a small state machine in
 `Canvas.tsx`. Moves of auto-layout children reorder them inside the flow; dropping onto
 another frame reparents while preserving world position.
 
+## Design engine (Milestone 2)
+
+- **Schema v3** adds `project.tokens`, `project.breakpoints`, and on every node `constraints`,
+  `bindings` (token references) and `responsive` (breakpoint id → overridden properties).
+  Frames may carry `component` (main component with variant set/properties); the `instance`
+  node type references a main component and stores per-layer `overrides`.
+- **Resolution, not duplication** (`core/resolve.ts`, `core/instance.ts`): what you see is
+  computed at render/export time — breakpoint cascade (desktop-first) → token bindings →
+  instance expansion. Changing a token, a main component or a breakpoint override therefore
+  updates every use immediately, with nothing to sync.
+- **Instances are leaves** in the stored tree; their layers are *virtual* (`instanceId__sourceId`)
+  so they can be rendered, measured, selected and overridden but never structurally edited.
+- **One write path** (`editor/actions.ts → writeOps`): edits become instance overrides,
+  responsive overrides (when a breakpoint is active) or base updates, and editing a
+  token-bound value detaches that binding.
+- **Invariants enforced by ops**: bindings must reference existing tokens; overrides must
+  produce valid nodes; instances may not (directly or transitively) contain their own
+  component; deleting a main component or a token bakes the current values into users.
+- **History persistence**: undo/redo patches are saved with the project (size-capped);
+  restored entries are re-validated with the full schema before being applied.
+
 ## Workflow engine (Milestone 3)
 
 ```

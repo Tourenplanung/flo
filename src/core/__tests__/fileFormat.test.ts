@@ -42,9 +42,19 @@ describe('project validation & migration', () => {
     delete p.pages[0].guides;
     delete p.pages[0].background;
     delete p.workflows;
+    delete p.tokens;
+    delete p.breakpoints;
+    for (const n of Object.values(p.nodes) as Record<string, unknown>[]) {
+      delete n.constraints;
+      delete n.bindings;
+      delete n.responsive;
+      delete n.component;
+    }
     p.schemaVersion = 0;
     const migrated = migrateProject(p);
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.breakpoints.length).toBe(2);
+    expect(Object.values(migrated.nodes).every((n) => n.constraints && n.responsive)).toBe(true);
     expect(migrated.workflows).toEqual([]);
     expect(migrated.pages[0]!.guides).toEqual([]);
   });

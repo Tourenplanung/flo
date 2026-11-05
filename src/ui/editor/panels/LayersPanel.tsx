@@ -14,6 +14,8 @@ import {
   Type,
   Unlock,
   Columns3,
+  Component,
+  Diamond,
 } from 'lucide-react';
 import { memo, useEffect, useRef, useState, type DragEvent } from 'react';
 import { op, type DocOp } from '@/core/ops';
@@ -34,7 +36,10 @@ type DropPos = 'before' | 'after' | 'inside';
 function NodeIcon({ node }: { node: DesignNode }) {
   const size = 13;
   switch (node.type) {
+    case 'instance':
+      return <Diamond size={size} className="text-accent" />;
     case 'frame':
+      if (node.component) return <Component size={size} className="text-accent" />;
       if (node.layout.mode === 'vertical') return <LayoutList size={size} />;
       if (node.layout.mode === 'horizontal') return <Columns3 size={size} />;
       return <Frame size={size} />;

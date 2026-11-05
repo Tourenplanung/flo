@@ -20,13 +20,13 @@ export function useAutosave(): { status: SaveStatus; saveNow: () => void } {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     firstPending.current = null;
-    const { project, revision } = useDocStore.getState();
+    const { project, revision, past, future } = useDocStore.getState();
     if (!project || revision === savedRevision.current) return;
     setStatus('saving');
     const run = async () => {
       if (inFlight.current) await inFlight.current.catch(() => undefined);
       try {
-        await projectRepo.save(project);
+        await projectRepo.save(project, { past, future });
         savedRevision.current = revision;
         setStatus(useDocStore.getState().revision === revision ? 'saved' : 'unsaved');
       } catch (e) {

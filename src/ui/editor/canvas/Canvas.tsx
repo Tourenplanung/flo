@@ -15,7 +15,10 @@ import { createId } from '@/core/ids';
 import { op, type DocOp } from '@/core/ops';
 import type { DesignNode, Guide, Project } from '@/core/schema';
 import { getChildIds, getNodePath, isAncestor, isInFlow, topLevelOnly } from '@/core/tree';
-import { parentOrigin, worldRect } from '@/editor/actions';
+import { parentOrigin, worldRect, writeOps } from '@/editor/actions';
+import { activeChain, effectiveNode, useChain } from '@/editor/effective';
+import { constraintOps } from '@/core/constraints';
+import { parseVirtualId } from '@/core/instance';
 import { importAndInsertImages } from '@/editor/imageImport';
 import { useT } from '@/i18n';
 import { dispatch, getProject, useDocStore } from '@/store/docStore';
@@ -24,6 +27,7 @@ import { ContextMenu, type ContextMenuState } from './ContextMenu';
 import { NodeView } from './NodeView';
 import { Overlay } from './Overlay';
 import { Rulers, RULER_SIZE } from './Rulers';
+import { BreakpointBar } from './BreakpointBar';
 
 type Gesture =
   | { kind: 'pan'; start: Point; vp: { x: number; y: number } }
@@ -49,9 +53,9 @@ const DRAG_THRESHOLD = 3;
 let gestureSeq = 0;
 const nextKey = (kind: string) => `${kind}-${++gestureSeq}-${Date.now()}`;
 
-/** Deepest unlocked path from top-level down to the hit node. */
+/** Deepest unlocked path from top-level down to the hit node (virtual instance layers map to their instance). */
 function hitPath(project: Project, hitId: string): DesignNode[] {
-  const path = getNodePath(project, hitId);
+  const path = getNodePath(project, parseVirtualId(hitId)?.instanceId ?? hitId);
   const lockedAt = path.findIndex((n) => n.locked);
   return lockedAt >= 0 ? path.slice(0, lockedAt) : path;
 }
@@ -61,7 +65,10 @@ function pickTarget(project: Project, path: DesignNode[], selection: string[], d
   if (!path.length) return null;
   if (deep) return path[path.length - 1]!.id;
   const selectedIdx = path.findIndex((n) => selection.includes(n.id));
-  if (selectedIdx >= 0) return path[selectedIdx]!.id;
+  // Keep a selected container when clicking its content (so it can be dragged), except for
+  // top-level frames (artboards): clicking inside them selects their direct children.
+  const isArtboard = selectedIdx === 0 && path[0]!.type === 'frame' && path.length > 1;
+  if (selectedIdx >= 0 && !isArtboard) return path[selectedIdx]!.id;
   let depth = path[0]!.type === 'frame' && path.length > 1 ? 1 : 0;
   for (const s of selection) {
     const sn = project.nodes[s];
@@ -166,6 +173,7 @@ export function Canvas() {
   const tool = useEditorStore((s) => s.tool);
   const showRulers = useEditorStore((s) => s.showRulers);
   const vp = useViewport();
+  const chain = useChain();
   const page = useDocStore((s) => s.project?.pages.find((p) => p.id === pageId));
   const nodes = useDocStore((s) => s.project?.nodes);
 
@@ -198,7 +206,7 @@ export function Canvas() {
     useEditorStore.getState().setRects(rects);
   }, []);
 
-  useLayoutEffect(measure, [measure, nodes, page, vp.zoom]);
+  useLayoutEffect(measure, [measure, nodes, page, vp.zoom, chain]);
 
   useEffect(() => {
     const handler = () => requestAnimationFrame(measure);
@@ -272,8 +280,9 @@ export function Canvas() {
       const flowItems = ids.filter((id) => isInFlow(project, project.nodes[id]!));
       const flowId = ids.length === 1 && flowItems.length === 1 ? ids[0]! : null;
       const movable = flowId ? ids : ids.filter((id) => !flowItems.includes(id));
+      const chain = activeChain(project);
       const items = movable.map((id) => {
-        const n = project.nodes[id]!;
+        const n = effectiveNode(project, id, chain)!;
         return { id, x: n.x, y: n.y, rect: worldRect(project, id) ?? { x: 0, y: 0, width: 0, height: 0 } };
       });
       if (!items.length) return;
@@ -379,7 +388,10 @@ export function Canvas() {
     // Select tool
     const deep = e.metaKey || e.ctrlKey;
     const isTopFrameBackground = path.length === 1 && path[0]!.type === 'frame' && !s.selection.includes(path[0]!.id) && !deep;
-    const target = isTopFrameBackground ? null : pickTarget(project, path, s.selection, deep);
+    let target = isTopFrameBackground ? null : pickTarget(project, path, s.selection, deep);
+    // Inside an instance: ⌘/Ctrl-click, or clicking while one of its layers is selected, reaches the inner layer.
+    const v = hitId ? parseVirtualId(hitId) : null;
+    if (v && hitId && (deep || s.selection.some((id) => parseVirtualId(id)?.instanceId === v.instanceId))) target = hitId;
     if (!target) {
       const scopeId = isTopFrameBackground ? path[0]!.id : s.pageId;
       if (!e.shiftKey) s.select([]);
@@ -465,12 +477,12 @@ export function Canvas() {
           s.setSnapLines(snapped.lines);
         } else s.setSnapLines([]);
         // Positions snap to the pixel grid.
-        const ops = g.items.map((it) => op.update(it.id, { x: Math.round(it.x + dx), y: Math.round(it.y + dy) }));
+        const ops = g.items.flatMap((it) => writeOps(project, it.id, { x: Math.round(it.x + dx), y: Math.round(it.y + dy) }));
         dispatch(ops, { label: 'Move', mergeKey: g.key, mergeWindow: Infinity });
         return;
       }
       case 'resize': {
-        const n = project.nodes[g.id];
+        const n = effectiveNode(project, g.id, activeChain(project));
         if (!n) return;
         let r = resizeRect(g.rect, g.dir, world.x - g.start.x, world.y - g.start.y, {
           keepAspect: e.shiftKey || n.type === 'icon',
@@ -506,7 +518,13 @@ export function Canvas() {
           props.x = Math.round(r.x - o.x);
           props.y = Math.round(r.y - o.y);
         }
-        dispatch([op.update(n.id, props), ...fitGroupOps(project, { [n.id]: r })], { label: 'Resize', mergeKey: g.key, mergeWindow: Infinity });
+        // Children with constraints follow the resized frame (base layout; breakpoints adapt via CSS).
+        const constraintChanges = s.breakpointId ? [] : constraintOps(project, n.id, props.width!, props.height!);
+        dispatch([...writeOps(project, n.id, props as Record<string, unknown>), ...constraintChanges, ...fitGroupOps(project, { [n.id]: r })], {
+          label: 'Resize',
+          mergeKey: g.key,
+          mergeWindow: Infinity,
+        });
         return;
       }
       case 'draw': {
@@ -660,6 +678,10 @@ export function Canvas() {
     const idx = path.findIndex((n) => s.selection.includes(n.id));
     const cur = idx >= 0 ? path[idx]! : null;
     if (cur?.type === 'text') return s.setEditingText(cur.id);
+    // Double-click on an instance selects the layer inside it (to edit its overrides).
+    if (parseVirtualId(hitId) && (cur?.type === 'instance' || path[path.length - 1]?.type === 'instance')) {
+      if (cur?.type === 'instance' || path[path.length - 1]!.id === parseVirtualId(hitId)!.instanceId) return s.select([hitId]);
+    }
     const next = idx >= 0 ? path[idx + 1] : path[path.length - 1];
     if (next) {
       s.select([next.id]);
@@ -724,10 +746,11 @@ export function Canvas() {
         className="absolute left-0 top-0"
         style={{ transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`, transformOrigin: '0 0', width: 0, height: 0 }}
       >
-        {page?.childIds.map((id) => <NodeView key={id} id={id} />)}
+        {page?.childIds.map((id) => <NodeView key={id} id={id} chain={chain} />)}
       </div>
       <Overlay onHandleDown={onHandleDown} onFrameLabelDown={onFrameLabelDown} onGuideDown={onGuideDown} />
       {showRulers && <Rulers onRulerDown={onRulerDown} />}
+      <BreakpointBar />
       {dropActive && (
         <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-xl border-2 border-dashed border-accent/70 bg-accent/5 text-sm text-fg">
           {t('canvas.dropImage')}

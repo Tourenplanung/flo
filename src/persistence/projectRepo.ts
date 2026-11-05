@@ -7,7 +7,24 @@ import { blobToDataUrl, dataUrlToBlob, parseBundle, serializeBundle, withNewIden
 import { createId } from '@/core/ids';
 import { migrateProject } from '@/core/migrate';
 import type { AssetMeta, Project } from '@/core/schema';
+import type { HistoryEntry } from '@/store/history';
 import { db, type FloDB } from './db';
+
+export interface StoredHistory {
+  past: HistoryEntry[];
+  future: HistoryEntry[];
+}
+
+const MAX_HISTORY_BYTES = 4_000_000;
+
+/** Keeps the stored history under a size budget by dropping the oldest entries. */
+function capHistory(h: StoredHistory): StoredHistory {
+  const strip = (e: HistoryEntry): HistoryEntry => ({ ...e, mergeKey: undefined });
+  let past = h.past.map(strip);
+  const future = h.future.map(strip);
+  while (past.length && JSON.stringify({ past, future }).length > MAX_HISTORY_BYTES) past = past.slice(Math.ceil(past.length / 4));
+  return { past, future: JSON.stringify(future).length > MAX_HISTORY_BYTES ? [] : future };
+}
 
 export interface ProjectSummary {
   id: string;
@@ -29,7 +46,7 @@ export function createRepo(database: FloDB = db) {
       return migrateProject(row.doc);
     },
 
-    async save(project: Project): Promise<void> {
+    async save(project: Project, history?: StoredHistory): Promise<void> {
       const existing = await database.projects.get(project.id);
       await database.projects.put({
         id: project.id,
@@ -37,7 +54,19 @@ export function createRepo(database: FloDB = db) {
         createdAt: existing?.createdAt ?? project.createdAt,
         updatedAt: Date.now(),
         doc: project,
+        history: history ? capHistory(history) : existing?.history,
       });
+    },
+
+    async loadHistory(id: string): Promise<StoredHistory | null> {
+      const row = await database.projects.get(id);
+      const h = row?.history as StoredHistory | undefined;
+      if (!h || !Array.isArray(h.past) || !Array.isArray(h.future)) return null;
+      const ok = (e: unknown) => {
+        const x = e as Record<string, unknown>;
+        return !!x && Array.isArray(x.patches) && Array.isArray(x.inverse) && typeof x.label === 'string' && typeof x.time === 'number';
+      };
+      return h.past.every(ok) && h.future.every(ok) ? h : null;
     },
 
     async create(name: string, pageName?: string): Promise<Project> {

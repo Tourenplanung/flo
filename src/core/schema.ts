@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 
 const MAX_STR = 10_000;
 const MAX_NAME = 200;
@@ -74,6 +74,46 @@ export const SizingSchema = z.object({
 
 const optDim = nonNeg.max(100_000).nullable();
 
+/** How an absolutely positioned child reacts when its (non auto-layout) parent is resized. */
+export const ConstraintSchema = z.enum(['start', 'end', 'center', 'stretch', 'scale']);
+export const ConstraintsSchema = z.object({ horizontal: ConstraintSchema, vertical: ConstraintSchema });
+
+/** Design-token references. A bound property is resolved from the token at render time. */
+export const TokenBindingsSchema = z
+  .object({
+    fill: IdSchema,
+    stroke: IdSchema,
+    text: IdSchema,
+    radius: IdSchema,
+    gap: IdSchema,
+    padding: IdSchema,
+    shadow: IdSchema,
+  })
+  .partial();
+
+/** Properties that may vary per breakpoint (validated again when merged into a node). */
+export const ResponsiveOverrideSchema = z
+  .object({
+    visible: z.boolean(),
+    x: finite,
+    y: finite,
+    width: nonNeg.max(100_000),
+    height: nonNeg.max(100_000),
+    sizing: z.lazy(() => SizingSchema),
+    minWidth: optDim,
+    maxWidth: optDim,
+    opacity: z.number().min(0).max(1),
+    radius: z.tuple([nonNeg, nonNeg, nonNeg, nonNeg]),
+    layout: z.lazy(() => AutoLayoutSchema),
+    fontSize: z.number().min(1).max(2000),
+    lineHeight: z.lazy(() => LineHeightSchema),
+    letterSpacing: finite,
+    textAlign: z.enum(['left', 'center', 'right', 'justify']),
+  })
+  .partial();
+
+export const RESPONSIVE_KEYS = Object.keys(ResponsiveOverrideSchema.shape) as (keyof z.infer<typeof ResponsiveOverrideSchema>)[];
+
 const BaseNodeShape = {
   id: IdSchema,
   name: z.string().max(MAX_NAME),
@@ -98,6 +138,10 @@ const BaseNodeShape = {
   /** Corner radii: top-left, top-right, bottom-right, bottom-left. */
   radius: z.tuple([nonNeg, nonNeg, nonNeg, nonNeg]),
   effects: z.array(EffectSchema).max(16),
+  constraints: ConstraintsSchema,
+  bindings: TokenBindingsSchema,
+  /** Breakpoint id → overridden properties (desktop-first cascade). */
+  responsive: z.record(IdSchema, ResponsiveOverrideSchema),
 };
 
 export const LayoutModeSchema = z.enum(['none', 'horizontal', 'vertical']);
@@ -134,6 +178,14 @@ export const FrameNodeSchema = z.object({
   clipContent: z.boolean(),
   layout: AutoLayoutSchema,
   role: FrameRoleSchema,
+  /** Non-null when this frame is a main component. */
+  component: z
+    .object({
+      set: z.string().max(100),
+      variant: z.record(z.string().min(1).max(40), z.string().max(40)),
+      description: z.string().max(500),
+    })
+    .nullable(),
 });
 
 export const GroupNodeSchema = z.object({
@@ -241,6 +293,31 @@ export const IconNodeSchema = z.object({
   strokeWidth: z.number().min(0.25).max(8),
 });
 
+/** Per-layer overrides an instance applies on top of its main component. */
+export const InstanceOverrideSchema = z
+  .object({
+    characters: z.string().max(MAX_STR),
+    fills: z.array(PaintSchema).max(16),
+    stroke: StrokeSchema.nullable(),
+    visible: z.boolean(),
+    opacity: z.number().min(0).max(1),
+    fontSize: z.number().min(1).max(2000),
+    fontWeight: z.number().int().min(100).max(900),
+    icon: IconNameSchema,
+    assetId: IdSchema.nullable(),
+  })
+  .partial();
+
+export const INSTANCE_OVERRIDE_KEYS = Object.keys(InstanceOverrideSchema.shape) as (keyof z.infer<typeof InstanceOverrideSchema>)[];
+
+export const InstanceNodeSchema = z.object({
+  ...BaseNodeShape,
+  type: z.literal('instance'),
+  componentId: IdSchema,
+  /** Source layer id inside the main component → overridden properties. */
+  overrides: z.record(IdSchema, InstanceOverrideSchema),
+});
+
 export const DesignNodeSchema = z.discriminatedUnion('type', [
   FrameNodeSchema,
   GroupNodeSchema,
@@ -250,6 +327,7 @@ export const DesignNodeSchema = z.discriminatedUnion('type', [
   TextNodeSchema,
   ImageNodeSchema,
   IconNodeSchema,
+  InstanceNodeSchema,
 ]);
 
 export const GuideSchema = z.object({
@@ -313,6 +391,58 @@ export type WorkflowNode = z.infer<typeof WorkflowNodeSchema>;
 export type WorkflowEdge = z.infer<typeof WorkflowEdgeSchema>;
 export type Workflow = z.infer<typeof WorkflowSchema>;
 
+/* ------------------------------------------------------------------ */
+/* Design tokens & breakpoints                                         */
+/* ------------------------------------------------------------------ */
+
+export const TokenNameSchema = z
+  .string()
+  .min(1)
+  .max(60)
+  .regex(/^[A-Za-z0-9 _./-]+$/, 'Token names may use letters, numbers, spaces and _ . / -');
+
+export const ColorTokenSchema = z.object({ id: IdSchema, name: TokenNameSchema, value: HexColorSchema, opacity: z.number().min(0).max(1) });
+export const TextTokenSchema = z.object({
+  id: IdSchema,
+  name: TokenNameSchema,
+  fontFamily: FontFamilySchema,
+  fontSize: z.number().min(1).max(2000),
+  fontWeight: z.number().int().min(100).max(900),
+  lineHeight: LineHeightSchema,
+  letterSpacing: finite,
+});
+export const NumberTokenSchema = z.object({ id: IdSchema, name: TokenNameSchema, value: nonNeg.max(10_000) });
+export const ShadowTokenSchema = z.object({ id: IdSchema, name: TokenNameSchema, effect: EffectSchema });
+
+export const TokensSchema = z.object({
+  colors: z.array(ColorTokenSchema).max(500),
+  text: z.array(TextTokenSchema).max(200),
+  spacing: z.array(NumberTokenSchema).max(200),
+  radius: z.array(NumberTokenSchema).max(100),
+  shadows: z.array(ShadowTokenSchema).max(100),
+});
+
+export const BreakpointSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1).max(60),
+  /** Styles apply at viewport widths ≤ maxWidth (desktop-first). */
+  maxWidth: z.number().int().min(120).max(10_000),
+  /** Frame width used when previewing this breakpoint in the editor. */
+  previewWidth: z.number().int().min(120).max(10_000),
+});
+
+export type ColorToken = z.infer<typeof ColorTokenSchema>;
+export type TextToken = z.infer<typeof TextTokenSchema>;
+export type NumberToken = z.infer<typeof NumberTokenSchema>;
+export type ShadowToken = z.infer<typeof ShadowTokenSchema>;
+export type Tokens = z.infer<typeof TokensSchema>;
+export type TokenKind = keyof Tokens;
+export type Breakpoint = z.infer<typeof BreakpointSchema>;
+export type ResponsiveOverride = z.infer<typeof ResponsiveOverrideSchema>;
+export type TokenBindings = z.infer<typeof TokenBindingsSchema>;
+export type Constraint = z.infer<typeof ConstraintSchema>;
+export type InstanceOverride = z.infer<typeof InstanceOverrideSchema>;
+
 export const ProjectSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   id: IdSchema,
@@ -322,6 +452,8 @@ export const ProjectSchema = z.object({
   nodes: z.record(IdSchema, DesignNodeSchema),
   assets: z.record(IdSchema, AssetMetaSchema),
   workflows: z.array(WorkflowSchema).max(200),
+  tokens: TokensSchema,
+  breakpoints: z.array(BreakpointSchema).max(12),
 });
 
 export type Paint = z.infer<typeof PaintSchema>;
@@ -344,6 +476,7 @@ export type LineNode = z.infer<typeof LineNodeSchema>;
 export type TextNode = z.infer<typeof TextNodeSchema>;
 export type ImageNode = z.infer<typeof ImageNodeSchema>;
 export type IconNode = z.infer<typeof IconNodeSchema>;
+export type InstanceNode = z.infer<typeof InstanceNodeSchema>;
 export type DesignNode = z.infer<typeof DesignNodeSchema>;
 export type NodeType = DesignNode['type'];
 export type Guide = z.infer<typeof GuideSchema>;
@@ -359,4 +492,4 @@ export function isContainer(node: DesignNode): node is FrameNode | GroupNode {
 }
 
 /** Keys that can never be changed by a generic `updateNode` operation. */
-export const STRUCTURAL_KEYS = ['id', 'type', 'parentId', 'childIds'] as const;
+export const STRUCTURAL_KEYS = ['id', 'type', 'parentId', 'childIds', 'componentId'] as const;

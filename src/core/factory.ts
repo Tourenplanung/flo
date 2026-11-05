@@ -6,7 +6,10 @@ import { createId } from './ids';
 import {
   SCHEMA_VERSION,
   type AutoLayout,
+  type Breakpoint,
   type DesignNode,
+  type InstanceNode,
+  type Tokens,
   type EllipseNode,
   type FrameNode,
   type GroupNode,
@@ -48,6 +51,9 @@ function base(name: string, parentId: string, x: number, y: number, width: numbe
     stroke: null,
     radius: [0, 0, 0, 0],
     effects: [],
+    constraints: { horizontal: 'start', vertical: 'start' },
+    bindings: {},
+    responsive: {},
   };
 }
 
@@ -77,6 +83,7 @@ export function createFrame(b: Box, extra: Partial<FrameNode> = {}): FrameNode {
     clipContent: true,
     layout: { ...NO_LAYOUT },
     role: 'div',
+    component: null,
     ...extra,
   };
 }
@@ -162,6 +169,27 @@ export function createPage(name: string): Page {
   return { id: createId(), name, childIds: [], background: '#1E1F25', guides: [] };
 }
 
+export function emptyTokens(): Tokens {
+  return { colors: [], text: [], spacing: [], radius: [], shadows: [] };
+}
+
+export function defaultBreakpoints(): Breakpoint[] {
+  return [
+    { id: 'bp-tablet', name: 'Tablet', maxWidth: 1024, previewWidth: 768 },
+    { id: 'bp-mobile', name: 'Mobile', maxWidth: 640, previewWidth: 390 },
+  ];
+}
+
+export function createInstance(b: Box, component: FrameNode): InstanceNode {
+  return {
+    ...base(b.name ?? component.name, b.parentId, b.x ?? 0, b.y ?? 0, b.width ?? component.width, b.height ?? component.height),
+    type: 'instance',
+    sizing: { ...component.sizing, horizontal: component.sizing.horizontal === 'fill' ? 'fixed' : component.sizing.horizontal, vertical: component.sizing.vertical === 'fill' ? 'fixed' : component.sizing.vertical },
+    componentId: component.id,
+    overrides: {},
+  };
+}
+
 export function createProject(name: string, pageName = 'Pagina 1'): Project {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -172,6 +200,8 @@ export function createProject(name: string, pageName = 'Pagina 1'): Project {
     nodes: {},
     assets: {},
     workflows: [],
+    tokens: emptyTokens(),
+    breakpoints: defaultBreakpoints(),
   };
 }
 

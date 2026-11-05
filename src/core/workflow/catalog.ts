@@ -35,6 +35,8 @@ export interface StylesValue {
   sizes: { h1: number; h2: number; h3: number; body: number; small: number };
   radius: number;
   spacing: number;
+  /** Ids of project tokens written by the design-system node (when enabled). */
+  tokenIds?: { colors: Record<string, string>; text: Record<string, string>; radius?: string };
 }
 export interface ReportIssue {
   severity: 'error' | 'warning' | 'info';
@@ -270,6 +272,7 @@ export const NODE_SPECS: NodeSpec[] = [
       scale: z.number().min(1.05).max(1.8),
       radius: z.number().min(0).max(64),
       spacing: z.number().min(2).max(32),
+      writeTokens: z.boolean(),
     }),
     defaults: {
       primary: '#6D5BFF',
@@ -281,6 +284,7 @@ export const NODE_SPECS: NodeSpec[] = [
       scale: 1.25,
       radius: 10,
       spacing: 8,
+      writeTokens: false,
     },
     fields: [
       { key: 'primary', kind: 'color', label: l('Colore primario', 'Primary color') },
@@ -292,6 +296,12 @@ export const NODE_SPECS: NodeSpec[] = [
       { key: 'scale', kind: 'number', label: l('Scala tipografica', 'Type scale'), min: 1.05, max: 1.8, step: 0.05 },
       { key: 'radius', kind: 'number', label: l('Raggio', 'Radius'), min: 0, max: 64 },
       { key: 'spacing', kind: 'number', label: l('Unità di spaziatura', 'Spacing unit'), min: 2, max: 32 },
+      {
+        key: 'writeTokens',
+        kind: 'checkbox',
+        label: l('Scrivi come token del progetto', 'Write as project tokens'),
+        help: l('Crea/aggiorna i token “ds/…”: i livelli stilizzati restano collegati e seguono le modifiche ai token.', 'Creates/updates “ds/…” tokens: styled layers stay bound and follow token edits.'),
+      },
     ],
     availability: 'ready',
   }),

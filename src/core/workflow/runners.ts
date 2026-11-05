@@ -8,7 +8,7 @@ import { NodeRunError, type Runner, type RunnerContext } from './engine';
 import { exportHtml } from './htmlExport';
 import { ensurePage, liveFrames, nextFreeX, removeGenerated, type Device } from './placement';
 import { adaptTree } from './responsive';
-import { deriveStyles, styleTree, styleUpdates, type DesignSystemParams } from './styling';
+import { deriveStyles, designSystemTokenOps, styleTree, styleUpdates, type DesignSystemParams } from './styling';
 import { buildWireframe, treesFor } from './wireframe';
 
 const t = (ctx: RunnerContext, it: string, en: string) => (ctx.host.lang === 'it' ? it : en);
@@ -117,7 +117,12 @@ export const RUNNERS: Record<string, Runner> = {
 
   'design-system': (ctx) => {
     const styles = deriveStyles(ctx.params as unknown as DesignSystemParams);
-    return { outputs: { styles }, summary: `${styles.fonts.heading} / ${styles.fonts.body} · ${styles.colors.primary}` };
+    if (ctx.params.writeTokens) {
+      const { ops, tokenIds } = designSystemTokenOps(ctx.node.id, styles);
+      ctx.host.apply(ops, `Workflow · ${ctx.node.label || 'Design system'} → tokens`);
+      styles.tokenIds = tokenIds;
+    }
+    return { outputs: { styles }, summary: `${styles.fonts.heading} / ${styles.fonts.body} · ${styles.colors.primary}${styles.tokenIds ? ' · token' : ''}` };
   },
 
   'apply-styles': (ctx) => {

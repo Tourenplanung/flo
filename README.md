@@ -8,7 +8,7 @@ API are required. Italian is the default language; English is available.
 
 ## Status
 
-Milestones 1 (Foundation) and 3 (Workflow engine) are complete; most of Milestone 2 is done. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+Milestones 1 (Foundation), 2 (Design engine) and 3 (Workflow engine) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
 roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Requirements
@@ -41,7 +41,16 @@ On a fresh machine, install the Playwright browser once with `npx playwright ins
 - **Canvas**: click selects within the current context, double-click drills in / edits text,
   `Ctrl/⌘`+click selects deep. Drag to move (with smart guides), handles to resize, drag from the
   rulers to create guides. Dragging a layer onto a frame moves it inside.
-- Everything is undoable (`⌘Z` / `⌘⇧Z`) and autosaved to IndexedDB.
+- **Design system** (*Stili* tab): color, text, spacing, radius and shadow tokens; bind them from
+  the inspector (◇ pickers). Editing a token restyles everything bound to it.
+- **Components** (*Componenti* tab / inspector): turn a frame into a component, create instances,
+  override text/colors/visibility inside instances (double-click), group variants
+  (`Stato=Hover`) and switch them per instance; detach when needed.
+- **Responsive**: the breakpoint bar above the canvas previews Tablet/Mobile; edits made while a
+  breakpoint is active become overrides for that width and below. Constraints pin absolute
+  layers to edges/center or stretch/scale them with their frame.
+- Everything is undoable (`⌘Z` / `⌘⇧Z`), listed in the *Cronologia* tab, and autosaved to
+  IndexedDB together with the history.
 
 ## Workflow mode
 
