@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0b0c10;
+  --color-canvas: #1e1f25;
+  --color-panel: #13141a;
+  --color-elevated: #1b1c23;
+  --color-field: #1f2028;
+  --color-field-hover: #262832;
+  --color-line: #23252d;
+  --color-line-strong: #33353f;
+  --color-fg: #eceef4;
+  --color-fg-muted: #a3a6b4;
+  --color-fg-subtle: #6b6e7b;
+  --color-accent: #8b7bff;
+  --color-accent-strong: #6d5bff;
+  --color-guide: #ff5c8a;
+  --color-snap: #ff4d6d;
+  --color-danger: #ff5f6d;
+  --color-success: #3ddc97;
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+  button {
+    cursor: default;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+/* Design content renders with the document's own styles, isolated from app defaults. */
+[data-canvas-world] {
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: normal;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+}

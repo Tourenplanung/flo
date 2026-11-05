@@ -1,0 +1,150 @@
+import type { PointerEvent as RPointerEvent } from 'react';
+import type { HandleDir, Rect } from '@/core/geometry';
+import { unionRects } from '@/core/geometry';
+import type { Guide } from '@/core/schema';
+import { useDocStore } from '@/store/docStore';
+import { useEditorStore, useViewport } from '@/store/editorStore';
+
+interface Props {
+  onHandleDown: (e: RPointerEvent, dir: HandleDir) => void;
+  onFrameLabelDown: (e: RPointerEvent, id: string) => void;
+  onGuideDown: (e: RPointerEvent, guide: Guide) => void;
+}
+
+const HANDLES: { dir: HandleDir; fx: number; fy: number; cursor: string }[] = [
+  { dir: 'nw', fx: 0, fy: 0, cursor: 'nwse-resize' },
+  { dir: 'n', fx: 0.5, fy: 0, cursor: 'ns-resize' },
+  { dir: 'ne', fx: 1, fy: 0, cursor: 'nesw-resize' },
+  { dir: 'e', fx: 1, fy: 0.5, cursor: 'ew-resize' },
+  { dir: 'se', fx: 1, fy: 1, cursor: 'nwse-resize' },
+  { dir: 's', fx: 0.5, fy: 1, cursor: 'ns-resize' },
+  { dir: 'sw', fx: 0, fy: 1, cursor: 'nesw-resize' },
+  { dir: 'w', fx: 0, fy: 0.5, cursor: 'ew-resize' },
+];
+
+const fmt = (v: number) => String(Math.round(v * 10) / 10);
+
+export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown }: Props) {
+  const vp = useViewport();
+  const rects = useEditorStore((s) => s.rects);
+  const selection = useEditorStore((s) => s.selection);
+  const hoveredId = useEditorStore((s) => s.hoveredId);
+  const snapLines = useEditorStore((s) => s.snapLines);
+  const marquee = useEditorStore((s) => s.marquee);
+  const editing = useEditorStore((s) => s.editingTextId);
+  const tool = useEditorStore((s) => s.tool);
+  const pageId = useEditorStore((s) => s.pageId);
+  const project = useDocStore((s) => s.project);
+  const page = project?.pages.find((p) => p.id === pageId);
+  if (!project || !page) return null;
+
+  const toScreen = (r: Rect): Rect => ({ x: r.x * vp.zoom + vp.x, y: r.y * vp.zoom + vp.y, width: r.width * vp.zoom, height: r.height * vp.zoom });
+
+  const selRects = selection.map((id) => rects[id]).filter(Boolean) as Rect[];
+  const single = selection.length === 1 ? project.nodes[selection[0]!] : undefined;
+  const bounds = unionRects(selRects);
+  const sb = bounds ? toScreen(bounds) : null;
+  const hovered = hoveredId && !selection.includes(hoveredId) ? rects[hoveredId] : undefined;
+  const showHandles = !!single && !single.locked && !editing && tool === 'select' && sb;
+  const small = sb ? sb.width < 28 || sb.height < 28 : false;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" data-overlay>
+      {/* Guides */}
+      {page.guides.map((g) => {
+        const pos = g.axis === 'x' ? g.position * vp.zoom + vp.x : g.position * vp.zoom + vp.y;
+        return (
+          <div
+            key={g.id}
+            className="pointer-events-auto absolute"
+            style={
+              g.axis === 'x'
+                ? { left: pos - 3, top: 0, bottom: 0, width: 7, cursor: 'ew-resize' }
+                : { top: pos - 3, left: 0, right: 0, height: 7, cursor: 'ns-resize' }
+            }
+            onPointerDown={(e) => tool === 'select' && onGuideDown(e, g)}
+          >
+            <div className="absolute bg-guide" style={g.axis === 'x' ? { left: 3, top: 0, bottom: 0, width: 1 } : { top: 3, left: 0, right: 0, height: 1 }} />
+          </div>
+        );
+      })}
+
+      {/* Top-level frame labels */}
+      {page.childIds.map((id) => {
+        const n = project.nodes[id];
+        const r = rects[id];
+        if (!n || !r || n.type !== 'frame' || !n.visible) return null;
+        const s = toScreen(r);
+        const selected = selection.includes(id);
+        return (
+          <div
+            key={id}
+            data-frame-label={id}
+            className={`pointer-events-auto absolute truncate text-[11px] leading-4 ${selected ? 'text-accent' : 'text-fg-muted hover:text-fg'}`}
+            style={{ left: s.x, top: s.y - 18, maxWidth: Math.max(40, s.width), cursor: 'default' }}
+            onPointerDown={(e) => onFrameLabelDown(e, id)}
+            onPointerEnter={() => useEditorStore.getState().setHovered(id)}
+          >
+            {n.name}
+          </div>
+        );
+      })}
+
+      {/* Hover */}
+      {hovered && (() => {
+        const s = toScreen(hovered);
+        return <div className="absolute border border-accent" style={{ left: s.x, top: s.y, width: s.width, height: s.height }} />;
+      })()}
+
+      {/* Selection */}
+      {selRects.length > 1 &&
+        selRects.map((r, i) => {
+          const s = toScreen(r);
+          return <div key={i} className="absolute border border-accent/70" style={{ left: s.x, top: s.y, width: s.width, height: s.height }} />;
+        })}
+      {sb && (
+        <div className="absolute border-[1.5px] border-accent" style={{ left: sb.x - 0.5, top: sb.y - 0.5, width: sb.width + 1, height: sb.height + 1 }} />
+      )}
+      {showHandles &&
+        HANDLES.filter((h) => !small || h.dir.length === 2).map((h) => (
+          <div
+            key={h.dir}
+            data-handle={h.dir}
+            className="pointer-events-auto absolute h-2 w-2 rounded-[1.5px] border-[1.5px] border-accent bg-white"
+            style={{ left: sb!.x + sb!.width * h.fx - 4, top: sb!.y + sb!.height * h.fy - 4, cursor: h.cursor }}
+            onPointerDown={(e) => onHandleDown(e, h.dir)}
+          />
+        ))}
+      {sb && bounds && !editing && (
+        <div
+          className="absolute -translate-x-1/2 whitespace-nowrap rounded bg-accent px-1.5 py-px text-[10px] font-medium leading-4 text-white tabular-nums"
+          style={{ left: sb.x + sb.width / 2, top: sb.y + sb.height + 6 }}
+        >
+          {fmt(bounds.width)} × {fmt(bounds.height)}
+        </div>
+      )}
+
+      {/* Smart guides */}
+      {snapLines.map((l, i) => {
+        if (l.axis === 'x') {
+          const x = l.position * vp.zoom + vp.x;
+          const infinite = l.from < -1e5;
+          const y1 = infinite ? 0 : l.from * vp.zoom + vp.y;
+          const y2 = infinite ? 10000 : l.to * vp.zoom + vp.y;
+          return <div key={i} className="absolute bg-snap" style={{ left: x - 0.5, top: y1, width: 1, height: y2 - y1 }} />;
+        }
+        const y = l.position * vp.zoom + vp.y;
+        const infinite = l.from < -1e5;
+        const x1 = infinite ? 0 : l.from * vp.zoom + vp.x;
+        const x2 = infinite ? 10000 : l.to * vp.zoom + vp.x;
+        return <div key={i} className="absolute bg-snap" style={{ top: y - 0.5, left: x1, height: 1, width: x2 - x1 }} />;
+      })}
+
+      {/* Marquee */}
+      {marquee && (() => {
+        const s = toScreen(marquee);
+        return <div className="absolute border border-accent bg-accent/10" style={{ left: s.x, top: s.y, width: s.width, height: s.height }} />;
+      })()}
+    </div>
+  );
+}
