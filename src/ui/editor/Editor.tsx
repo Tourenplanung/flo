@@ -9,6 +9,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { cx } from '@/ui/common/controls';
 import { Toast } from '@/ui/common/Toast';
 import { AssistantPanel } from '@/ui/ai/AssistantPanel';
+import { PrototypePlayer } from '@/ui/prototype/PrototypePlayer';
 import { AiSettingsDialog, CostConfirmDialog } from '@/ui/ai/AiDialogs';
 import { Canvas } from './canvas/Canvas';
 import { Inspector } from './inspector/Inspector';
@@ -135,6 +136,7 @@ function EditorShell({ onExit }: { onExit: () => void }) {
       )}
       <Toast />
       <AiSettingsDialog />
+      <PrototypePlayer />
       <CostConfirmDialog />
     </div>
   );

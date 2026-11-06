@@ -134,7 +134,29 @@ proxy) and `src/core/__tests__/ai.test.ts`, `server/claude-proxy.test.ts`.
   in a separate overlay; rejecting is only possible while it is the latest change.
 - One provider active at a time.
 
-## Milestone 5 — Prototyping ⬜
+## Milestone 5 — Prototyping ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Interactions on any layer: trigger (click, hover) → action | ✅ | Schema v4, stable id references |
+| Actions: navigate (with transition), back, open overlay, close overlay, show/hide layer | ✅ | Overlay position, outside click, dim |
+| Transitions: instant, dissolve, slide left/right/up/down (+ duration) | ✅ | Reversed when going back |
+| Prototype start screen | ✅ | Per project |
+| Connection arrows on the canvas for the selection | ✅ | Dashed for overlays |
+| Navigable preview (▶ or ⇧P): history, back (←), restart (R), screen picker, Esc | ✅ | Clicking empty areas flashes hotspots |
+| Interactions inside components work in every instance | ✅ | Targets scoped to the instance |
+| References cleaned up when screens/layers are deleted; remapped on duplicate | ✅ | |
+| Workflow “Prototipo interattivo” node | ✅ | Opens the player on the input design |
+
+**Acceptance:** users can navigate between designed screens — verified by
+`e2e/prototype.spec.ts` and `src/core/__tests__/prototype.test.ts`.
+
+### Known limitations after M5
+
+- No application logic (variables, conditions, forms, scrolling regions, smart animate).
+- The player shows the base layout (breakpoint overrides are not previewed in the player).
+- Interactions are not exported to HTML yet (Milestone 6).
+
 ## Milestone 6 — Code export (React + TS + CSS) ⬜
 `core/style.ts` already maps nodes to CSS and is designed to be shared by the exporter.
 
@@ -144,4 +166,4 @@ accessibility review, security review, in-app third-party license notices, deplo
 
 ## Test totals
 
-73 unit/component tests (Vitest) · 9 end-to-end tests (Playwright).
+80 unit/component tests (Vitest) · 10 end-to-end tests (Playwright).

@@ -41,6 +41,14 @@ export const migrations: Record<number, Migration> = {
     }
     return { ...raw, schemaVersion: 3, nodes, tokens: raw.tokens ?? emptyTokens(), breakpoints: raw.breakpoints ?? defaultBreakpoints() };
   },
+  // Version 4 adds prototype interactions and the prototype start screen.
+  3: (raw) => {
+    const nodes: Record<string, unknown> = {};
+    for (const [id, n] of Object.entries((raw.nodes ?? {}) as Record<string, Record<string, unknown>>)) {
+      nodes[id] = n && typeof n === 'object' ? { interactions: [], ...n } : n;
+    }
+    return { ...raw, schemaVersion: 4, nodes, prototype: raw.prototype ?? { startFrameId: null } };
+  },
 };
 
 export function migrateProject(input: unknown): Project {

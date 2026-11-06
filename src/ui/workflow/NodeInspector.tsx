@@ -7,6 +7,7 @@ import { unavailableReason } from '@/core/workflow/engine';
 import { openInCanvas, renameNode, updateNodeParams } from '@/editor/workflowActions';
 import { getActiveProvider } from '@/editor/ai';
 import { useAiStore } from '@/store/aiStore';
+import { useEditorStore } from '@/store/editorStore';
 import { useAssetUrl } from '@/editor/assetUrls';
 import { useT, type MessageKey } from '@/i18n';
 import { getProject, useDocStore } from '@/store/docStore';
@@ -348,7 +349,20 @@ export function NodeInspector({ workflow }: { workflow: Workflow }) {
       <Section title={`${t('wf.output')}${status ? ` · ${t(`wf.status.${status}` as MessageKey)}` : ''}`}>
         {error && <p className="rounded-md border border-danger/40 bg-danger/10 px-2 py-1.5 text-[11px] leading-4 text-[#ffc9cf]" data-testid="wf-error">{error}</p>}
         {!error && outputs.length === 0 && entry?.inputs.design && node.kind === 'canvas-output' && <OutputPreview value={entry.inputs.design} />}
-        {!error && outputs.length === 0 && !(node.kind === 'canvas-output' && entry) && <p className="text-[11px] text-fg-subtle">{t('wf.noOutput')}</p>}
+        {!error && node.kind === 'prototype' && entry?.inputs.design?.type === 'design' && (
+          <button
+            data-testid="wf-open-prototype"
+            className="flex items-center justify-center gap-1.5 rounded-md bg-accent-strong px-2 py-1.5 text-[11px] font-medium text-white hover:bg-accent"
+            onClick={() => {
+              const d = entry.inputs.design as { frameIds: string[] };
+              useEditorStore.getState().setMode('design');
+              useEditorStore.getState().openPlayer(d.frameIds[0] ?? null);
+            }}
+          >
+            <Play size={12} /> {t('proto.open')}
+          </button>
+        )}
+        {!error && outputs.length === 0 && !((node.kind === 'canvas-output' || node.kind === 'prototype') && entry) && <p className="text-[11px] text-fg-subtle">{t('wf.noOutput')}</p>}
         {outputs.map(([port, v]) => (
           <div key={port} data-testid={`wf-output-${port}`}>
             <OutputPreview value={v} />

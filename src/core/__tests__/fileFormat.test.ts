@@ -49,10 +49,13 @@ describe('project validation & migration', () => {
       delete n.bindings;
       delete n.responsive;
       delete n.component;
+      delete n.interactions;
     }
+    delete p.prototype;
     p.schemaVersion = 0;
     const migrated = migrateProject(p);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.prototype).toEqual({ startFrameId: null });
     expect(migrated.breakpoints.length).toBe(2);
     expect(Object.values(migrated.nodes).every((n) => n.constraints && n.responsive)).toBe(true);
     expect(migrated.workflows).toEqual([]);

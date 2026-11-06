@@ -22,6 +22,10 @@ interface EditorState {
   /** Breakpoint being previewed/edited on the canvas (null = base/desktop). */
   breakpointId: string | null;
   setBreakpoint: (id: string | null) => void;
+  /** Prototype player (null = closed); startId = screen to start from. */
+  player: { startId: string | null } | null;
+  openPlayer: (startId: string | null) => void;
+  closePlayer: () => void;
   pageId: string | null;
   selection: string[];
   hoveredId: string | null;
@@ -60,6 +64,9 @@ export const DEFAULT_VIEWPORT: Viewport = { x: 80, y: 80, zoom: 0.5 };
 export const useEditorStore = create<EditorState>()((set, get) => ({
   mode: 'design',
   breakpointId: null,
+  player: null,
+  openPlayer: (startId) => set({ player: { startId }, editingTextId: null }),
+  closePlayer: () => set({ player: null }),
   setBreakpoint: (breakpointId) => set({ breakpointId, editingTextId: null }),
   setMode: (mode) => set({ mode, hoveredId: null, editingTextId: null, snapLines: [], marquee: null }),
   pageId: null,

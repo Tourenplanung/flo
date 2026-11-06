@@ -67,6 +67,11 @@ export function checkIntegrity(project: Project): IntegrityIssue[] {
       if (!tokenIds[bindingKind[k] ?? '']?.has(id as string)) issues.push({ severity: 'warning', message: `Node ${node.id} is bound to missing token ${id}` });
     }
     for (const bp of Object.keys(node.responsive)) if (!bpIds.has(bp)) err(`Node ${node.id} has overrides for unknown breakpoint ${bp}`);
+    for (const it of node.interactions) {
+      const a = it.action;
+      const ref = a.type === 'navigate' || a.type === 'open-overlay' ? a.destinationId : a.type === 'toggle-visibility' ? a.targetId : null;
+      if (ref && !project.nodes[ref]) issues.push({ severity: 'warning', message: `Interaction on ${node.id} points to missing layer ${ref}` });
+    }
     if (node.type === 'instance') {
       const main = project.nodes[node.componentId];
       if (!main || main.type !== 'frame' || !main.component) err(`Instance ${node.id} references a missing component`);

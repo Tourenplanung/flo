@@ -20,6 +20,7 @@ import {
   BreakpointSchema,
   ColorTokenSchema,
   InstanceOverrideSchema,
+  InteractionSchema,
   NumberTokenSchema,
   ResponsiveOverrideSchema,
   ShadowTokenSchema,
@@ -30,6 +31,7 @@ import {
   type DesignNode,
   type FrameNode,
   type InstanceNode,
+  type Interaction,
   type Project,
   type TokenKind,
   type Workflow,
@@ -94,6 +96,9 @@ export const DocOpSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setInstanceOverride'), id: IdSchema, sourceId: IdSchema, props: InstanceOverrideSchema }),
   z.object({ type: z.literal('resetInstanceOverride'), id: IdSchema, sourceId: IdSchema.optional() }),
   z.object({ type: z.literal('detachInstance'), id: IdSchema }),
+  // Prototype
+  z.object({ type: z.literal('setInteractions'), id: IdSchema, interactions: z.array(InteractionSchema).max(20) }),
+  z.object({ type: z.literal('setPrototypeStart'), frameId: IdSchema.nullable() }),
   // Workflows
   z.object({ type: z.literal('createWorkflow'), workflow: WorkflowSchema, index: IndexSchema }),
   z.object({ type: z.literal('updateWorkflow'), id: IdSchema, props: z.object({ name: z.string().max(200) }).partial() }),
@@ -184,6 +189,47 @@ function detachInDraft(draft: Project, id: string) {
   for (const n of baked) draft.nodes[n.id] = n;
 }
 
+/** Ids an interaction points to. */
+export function interactionRefs(i: Interaction): string[] {
+  const a = i.action;
+  if (a.type === 'navigate' || a.type === 'open-overlay') return [a.destinationId];
+  if (a.type === 'toggle-visibility') return [a.targetId];
+  return [];
+}
+
+const isScreen = (draft: Project, id: string) => {
+  const n = draft.nodes[id];
+  return !!n && n.type === 'frame' && draft.pages.some((p) => p.id === n.parentId);
+};
+
+/** Validates interaction references (destinations must be top-level frames). */
+function checkInteractions(draft: Project, node: DesignNode, interactions: Interaction[]) {
+  const ids = new Set<string>();
+  for (const i of interactions) {
+    if (ids.has(i.id)) throw new OpError('Duplicate interaction id');
+    ids.add(i.id);
+    const a = i.action;
+    if ((a.type === 'navigate' || a.type === 'open-overlay') && !isScreen(draft, a.destinationId)) {
+      throw new OpError('The destination must be a top-level frame (screen)');
+    }
+    if (a.type === 'navigate' && a.destinationId === node.id) throw new OpError('A screen cannot navigate to itself');
+    if (a.type === 'toggle-visibility') {
+      if (!draft.nodes[a.targetId]) throw new OpError('Target layer not found');
+      if (a.targetId === node.id && i.trigger === 'click') throw new OpError('A layer cannot hide itself on click');
+    }
+  }
+}
+
+/** Removes interactions that point to any of the given (deleted) ids. */
+function pruneInteractions(draft: Project, removed: Set<string>) {
+  for (const n of Object.values(draft.nodes)) {
+    if (n.interactions.some((i) => interactionRefs(i).some((r) => removed.has(r)))) {
+      n.interactions = n.interactions.filter((i) => !interactionRefs(i).some((r) => removed.has(r)));
+    }
+  }
+  if (draft.prototype.startFrameId && removed.has(draft.prototype.startFrameId)) draft.prototype.startFrameId = null;
+}
+
 function getWorkflow(draft: Project, id: string): Workflow {
   const wf = draft.workflows.find((w) => w.id === id);
   if (!wf) throw new OpError(`Workflow ${id} not found`);
@@ -228,6 +274,16 @@ export function applyOp(draft: Project, op: DocOp): void {
       for (const n of op.nodes) draft.nodes[n.id] = structuredClone(n);
       insertAt(list, root.id, op.index);
       for (const n of op.nodes) {
+        const node = draft.nodes[n.id]!;
+        // Interactions pasted from elsewhere may point to layers that do not exist here: drop them.
+        node.interactions = node.interactions.filter((i) => {
+          try {
+            checkInteractions(draft, node, [i]);
+            return true;
+          } catch {
+            return false;
+          }
+        });
         checkBindings(draft, n);
         if (n.type === 'instance') checkInstanceTarget(draft, n, n.componentId);
         if (n.type === 'instance' && op.nodes.some((x) => x.id === n.componentId)) throw new OpError('An instance cannot reference a component inserted in the same tree');
@@ -253,6 +309,7 @@ export function applyOp(draft: Project, op: DocOp): void {
         if (JSON.stringify(target[k]) !== JSON.stringify(v)) target[k] = v;
       }
       checkBindings(draft, node);
+      if ('interactions' in op.props) checkInteractions(draft, node, node.interactions);
       return;
     }
     case 'deleteNode': {
@@ -268,6 +325,7 @@ export function applyOp(draft: Project, op: DocOp): void {
       if (components.size) detachInstancesOf(draft, components, subtree);
       removeFrom(childListOf(draft, node.parentId), op.id);
       deleteSubtree(draft, op.id);
+      pruneInteractions(draft, subtree);
       return;
     }
     case 'moveNode': {
@@ -307,8 +365,15 @@ export function applyOp(draft: Project, op: DocOp): void {
       const i = draft.pages.findIndex((p) => p.id === op.id);
       const page = draft.pages[i];
       if (!page) throw new OpError(`Page ${op.id} not found`);
+      const removed = new Set<string>();
+      const walk = (id: string) => {
+        removed.add(id);
+        draft.nodes[id]?.childIds.forEach(walk);
+      };
+      page.childIds.forEach(walk);
       for (const c of page.childIds) deleteSubtree(draft, c);
       draft.pages.splice(i, 1);
+      pruneInteractions(draft, removed);
       return;
     }
     case 'movePage': {
@@ -426,6 +491,18 @@ export function applyOp(draft: Project, op: DocOp): void {
       if (!node || node.type !== 'instance') throw new OpError('Not an instance');
       if (op.sourceId) delete node.overrides[op.sourceId];
       else node.overrides = {};
+      return;
+    }
+    case 'setInteractions': {
+      const node = draft.nodes[op.id];
+      if (!node) throw new OpError(`Node ${op.id} not found`);
+      checkInteractions(draft, node, op.interactions);
+      node.interactions = structuredClone(op.interactions);
+      return;
+    }
+    case 'setPrototypeStart': {
+      if (op.frameId && !isScreen(draft, op.frameId)) throw new OpError('The start screen must be a top-level frame');
+      draft.prototype.startFrameId = op.frameId;
       return;
     }
     case 'detachInstance': {

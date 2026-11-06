@@ -8,7 +8,7 @@ API are required. Italian is the default language; English is available.
 
 ## Status
 
-Milestones 1–4 (foundation, design engine, workflow engine, optional AI) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+Milestones 1–5 (foundation, design engine, workflow engine, optional AI, prototyping) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
 roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Requirements
@@ -52,6 +52,13 @@ On a fresh machine, install the Playwright browser once with `npx playwright ins
   layers to edges/center or stretch/scale them with their frame.
 - Everything is undoable (`⌘Z` / `⌘⇧Z`), listed in the *Cronologia* tab, and autosaved to
   IndexedDB together with the history.
+
+## Prototyping
+
+Select a layer → *Prototipo* in the inspector → add interactions (on click / while hovering):
+go to a screen with a transition, back, open/close an overlay, show/hide a layer. Arrows on
+the canvas show the links. ▶ in the top bar (or ⇧P) plays the prototype: ← back, R restart,
+Esc exit. Mark a frame as *Schermata iniziale* to choose where it starts.
 
 ## Workflow mode
 

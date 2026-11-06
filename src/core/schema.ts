@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION = 4 as const;
 
 const MAX_STR = 10_000;
 const MAX_NAME = 200;
@@ -114,6 +114,45 @@ export const ResponsiveOverrideSchema = z
 
 export const RESPONSIVE_KEYS = Object.keys(ResponsiveOverrideSchema.shape) as (keyof z.infer<typeof ResponsiveOverrideSchema>)[];
 
+/* ------------------------------------------------------------------ */
+/* Prototype interactions                                              */
+/* ------------------------------------------------------------------ */
+
+export const TransitionSchema = z.object({
+  type: z.enum(['instant', 'dissolve', 'slide-left', 'slide-right', 'slide-up', 'slide-down']),
+  durationMs: z.number().int().min(0).max(5000),
+});
+
+export const InteractionActionSchema = z.discriminatedUnion('type', [
+  /** Go to another top-level frame (screen). */
+  z.object({ type: z.literal('navigate'), destinationId: IdSchema, transition: TransitionSchema }),
+  /** Return to the previous screen. */
+  z.object({ type: z.literal('back') }),
+  /** Show a top-level frame as an overlay on the current screen. */
+  z.object({
+    type: z.literal('open-overlay'),
+    destinationId: IdSchema,
+    position: z.enum(['center', 'top', 'bottom', 'left', 'right']),
+    closeOnOutsideClick: z.boolean(),
+    dimBackground: z.boolean(),
+  }),
+  /** Close the topmost overlay. */
+  z.object({ type: z.literal('close-overlay') }),
+  /** Show/hide another layer of the same screen. */
+  z.object({ type: z.literal('toggle-visibility'), targetId: IdSchema }),
+]);
+
+export const InteractionSchema = z.object({
+  id: IdSchema,
+  /** click = on press; hover = while the pointer is over the layer (reverted on leave). */
+  trigger: z.enum(['click', 'hover']),
+  action: InteractionActionSchema,
+});
+
+export type Transition = z.infer<typeof TransitionSchema>;
+export type InteractionAction = z.infer<typeof InteractionActionSchema>;
+export type Interaction = z.infer<typeof InteractionSchema>;
+
 const BaseNodeShape = {
   id: IdSchema,
   name: z.string().max(MAX_NAME),
@@ -142,6 +181,8 @@ const BaseNodeShape = {
   bindings: TokenBindingsSchema,
   /** Breakpoint id → overridden properties (desktop-first cascade). */
   responsive: z.record(IdSchema, ResponsiveOverrideSchema),
+  /** Prototype interactions (reference other layers by stable id). */
+  interactions: z.array(InteractionSchema).max(20),
 };
 
 export const LayoutModeSchema = z.enum(['none', 'horizontal', 'vertical']);
@@ -454,6 +495,7 @@ export const ProjectSchema = z.object({
   workflows: z.array(WorkflowSchema).max(200),
   tokens: TokensSchema,
   breakpoints: z.array(BreakpointSchema).max(12),
+  prototype: z.object({ startFrameId: IdSchema.nullable() }),
 });
 
 export type Paint = z.infer<typeof PaintSchema>;

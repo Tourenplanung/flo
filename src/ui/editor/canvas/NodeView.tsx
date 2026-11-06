@@ -83,7 +83,7 @@ function VirtualView({ node: rawNode, nodes, parent, chain, instance }: { node: 
   );
 }
 
-function NodeContent({ node, editing }: { node: DesignNode; editing: boolean }) {
+export function NodeContent({ node, editing }: { node: DesignNode; editing: boolean }) {
   switch (node.type) {
     case 'text':
       return editing ? <TextEditor node={node} /> : <>{node.characters || '​'}</>;

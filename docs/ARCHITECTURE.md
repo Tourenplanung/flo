@@ -151,6 +151,17 @@ rejected individually). The result is one labelled, undoable transaction — the
 any manual edit. Workflow AI nodes use the same plan pipeline through the `EngineHost.ai`
 capability, and are `unavailable` when no provider is configured. See `docs/AI.md`.
 
+## Prototyping (Milestone 5)
+
+- **Schema v4**: every node has `interactions` (trigger + action, referencing screens/layers by
+  id) and the project has `prototype.startFrameId`. Ops validate destinations (top-level frames)
+  and targets, prune references when layers are deleted, and remap them when a subtree is
+  duplicated (`core/clone.ts`).
+- **Player engine** (`core/prototype.ts`): a pure state machine — screen, history, overlay stack,
+  visibility overrides, last transition — so behaviour is unit-tested without a browser.
+- **Player UI** (`ui/prototype/PrototypePlayer.tsx`) renders screens with the same `nodeStyle`
+  and token/instance resolution as the canvas; CSS keyframes provide the transitions.
+
 ## Persistence and security
 
 - Projects are stored as validated documents in IndexedDB (Dexie); images as blobs.

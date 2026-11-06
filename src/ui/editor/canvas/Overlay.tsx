@@ -140,6 +140,46 @@ export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown }: Props) 
         return <div key={i} className="absolute bg-snap" style={{ top: y - 0.5, left: x1, height: 1, width: x2 - x1 }} />;
       })}
 
+      {/* Prototype connections of the selection */}
+      <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden data-testid="proto-connections">
+        <defs>
+          <marker id="flo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--color-accent)" />
+          </marker>
+        </defs>
+        {selection.flatMap((id) => {
+          const n = project.nodes[id];
+          const from = rects[id];
+          if (!n || !from) return [];
+          return n.interactions.flatMap((it) => {
+            const a = it.action;
+            if (a.type !== 'navigate' && a.type !== 'open-overlay') return [];
+            const to = rects[a.destinationId];
+            if (!to) return [];
+            const s1 = toScreen(from);
+            const s2 = toScreen(to);
+            const x1 = s1.x + s1.width;
+            const y1 = s1.y + s1.height / 2;
+            const x2 = s2.x;
+            const y2 = s2.y + Math.min(40, s2.height / 2);
+            const dx = Math.max(40, Math.abs(x2 - x1) / 2);
+            return [
+              <g key={`${id}-${it.id}`}>
+                <circle cx={x1} cy={y1} r={4} fill="var(--color-accent)" />
+                <path
+                  d={`M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`}
+                  fill="none"
+                  stroke="var(--color-accent)"
+                  strokeWidth={1.5}
+                  strokeDasharray={a.type === 'open-overlay' ? '5 4' : undefined}
+                  markerEnd="url(#flo-arrow)"
+                />
+              </g>,
+            ];
+          });
+        })}
+      </svg>
+
       {/* Marquee */}
       {marquee && (() => {
         const s = toScreen(marquee);

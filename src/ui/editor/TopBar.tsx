@@ -31,6 +31,7 @@ import { cx, IconButton } from '@/ui/common/controls';
 import { Logo } from '@/ui/common/Logo';
 import { downloadText } from '@/ui/common/download';
 import { SHORTCUTS, shortcutLabel } from './shortcuts';
+import { playFromSelection } from '@/editor/prototypeActions';
 import { setZoom, zoomBy, zoomToFit, zoomToSelection } from './viewportActions';
 
 const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string }[] = [
@@ -116,7 +117,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
           </button>
         ))}
       </div>
-      <IconButton label={`${t('top.preview')} — ${t('mode.soon')}`} disabled>
+      <IconButton label={`${t('proto.play')} (⇧P)`} testId="proto-play" onClick={playFromSelection}>
         <Play size={15} />
       </IconButton>
       <IconButton label={t('top.ai')} active={aiOpen} testId="ai-toggle" onClick={() => useAiStore.getState().setPanelOpen(!aiOpen)}>

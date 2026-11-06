@@ -18,6 +18,10 @@ export function cloneSubtree(source: Record<string, DesignNode>, rootId: string,
     copy.id = idMap.get(n.id)!;
     copy.parentId = n.id === rootId ? newParentId : idMap.get(n.parentId)!;
     copy.childIds = n.childIds.map((c) => idMap.get(c)!).filter(Boolean);
+    // Interactions that target layers inside the copied subtree now target their copies.
+    copy.interactions = (copy.interactions ?? []).map((i) =>
+      i.action.type === 'toggle-visibility' && idMap.has(i.action.targetId) ? { ...i, action: { ...i.action, targetId: idMap.get(i.action.targetId)! } } : i,
+    );
     return copy;
   });
 }

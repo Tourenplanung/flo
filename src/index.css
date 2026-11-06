@@ -66,3 +66,13 @@
   color: #000;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Prototype player transitions */
+@keyframes flo-dissolve { from { opacity: 0; } to { opacity: 1; } }
+@keyframes flo-slide-left { from { transform: translateX(100%); } }
+@keyframes flo-slide-right { from { transform: translateX(-100%); } }
+@keyframes flo-slide-up { from { transform: translateY(100%); } }
+@keyframes flo-slide-down { from { transform: translateY(-100%); } }
+/* Clicking a non-interactive area briefly reveals the hotspots. */
+@keyframes flo-hotspot { 0%, 100% { outline-color: transparent; } 30%, 70% { outline-color: rgba(109, 91, 255, 0.85); } }
+.flo-hotspot-flash [data-hotspot] { outline: 2px solid transparent; outline-offset: 2px; animation: flo-hotspot 700ms ease-in-out; }

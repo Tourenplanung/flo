@@ -228,6 +228,22 @@ export const RUNNERS: Record<string, Runner> = {
     return { outputs: {}, summary: `${frames.length} frame` };
   },
 
+  prototype: (ctx) => {
+    const { project, frames } = needDesign(ctx);
+    const links = frames.reduce((n, id) => {
+      let count = 0;
+      const visit = (nid: string) => {
+        const node = project.nodes[nid];
+        if (!node) return;
+        count += node.interactions.length;
+        node.childIds.forEach(visit);
+      };
+      visit(id);
+      return n + count;
+    }, 0);
+    return { outputs: {}, summary: t(ctx, `${frames.length} schermate · ${links} interazioni`, `${frames.length} screens · ${links} interactions`) };
+  },
+
   'html-export': async (ctx) => {
     const { project, frames } = needDesign(ctx);
     const html = await exportHtml(project, frames, String(ctx.params.title || 'flö export'), ctx.host);

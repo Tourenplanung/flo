@@ -54,6 +54,7 @@ function base(name: string, parentId: string, x: number, y: number, width: numbe
     constraints: { horizontal: 'start', vertical: 'start' },
     bindings: {},
     responsive: {},
+    interactions: [],
   };
 }
 
@@ -202,6 +203,7 @@ export function createProject(name: string, pageName = 'Pagina 1'): Project {
     workflows: [],
     tokens: emptyTokens(),
     breakpoints: defaultBreakpoints(),
+    prototype: { startFrameId: null },
   };
 }
 

@@ -11,6 +11,7 @@ import { useSelectedNodes } from './helpers';
 import { AlignRow, AutoLayoutSection, GeometrySection } from './LayoutSection';
 import { BreakpointBanner, ComponentSection, ConstraintsSection, InstanceLayerInspector, InstanceSection } from './SystemSections';
 import { isVirtualId } from '@/core/instance';
+import { PrototypeSection } from './PrototypeSection';
 import { zoomToRect } from '../viewportActions';
 
 /** Places a new top-level frame to the right of existing content on the page. */
@@ -137,6 +138,7 @@ export function Inspector() {
       {!isGroupOnly && !all(lines) && <FillSection nodes={nodes} />}
       {!isGroupOnly && !texts.length && !icons.length && <StrokeSection nodes={nodes} />}
       {!isGroupOnly && <EffectsSection nodes={nodes} />}
+      {nodes.length === 1 && <PrototypeSection node={nodes[0]!} />}
     </div>
   );
 }

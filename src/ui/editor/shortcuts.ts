@@ -20,6 +20,7 @@ import {
 } from '@/editor/actions';
 import { useEditorStore, type Tool } from '@/store/editorStore';
 import { zoomBy, zoomTo100, zoomToFit, zoomToSelection } from './viewportActions';
+import { playFromSelection } from '@/editor/prototypeActions';
 
 export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -54,6 +55,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
 
 export function handleShortcut(e: KeyboardEvent, extra: { save: () => void }): boolean {
   if (isTypingTarget(e.target)) return false;
+  // The prototype player handles its own keys.
+  if (useEditorStore.getState().player) return false;
   const mod = isMac ? e.metaKey : e.ctrlKey;
   const key = e.key.toLowerCase();
   const s = useEditorStore.getState();
@@ -151,6 +154,7 @@ export function handleShortcut(e: KeyboardEvent, extra: { save: () => void }): b
     if (e.code === 'Digit2') return zoomToSelection(), true;
     if (e.code === 'Digit0') return zoomTo100(), true;
     if (key === 'r') return s.toggleRulers(), true;
+    if (key === 'p') return playFromSelection(), true;
   }
 
   switch (e.key) {
