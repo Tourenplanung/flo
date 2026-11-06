@@ -62,6 +62,7 @@ export function ProjectHome({ onOpen }: { onOpen: (id: string) => void }) {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{t('home.title')}</h1>
             <p className="mt-1 text-[13px] text-fg-muted">{t('home.subtitle')}</p>
+            <p className="mt-0.5 text-[10.5px] text-fg-subtle" data-testid="build-stamp">build {__FLO_BUILD__}</p>
           </div>
           <div className="flex gap-2">
             <button

@@ -61,7 +61,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
 
   return (
     <header className={cx('flex h-11 shrink-0 items-center border-b border-line bg-panel px-2', compact ? 'gap-0.5' : 'gap-2')} data-compact={compact || undefined}>
-      <button onClick={onExit} title={t('top.home')} aria-label={t('top.home')} className="flex h-8 items-center gap-1.5 rounded-md px-2 hover:bg-field-hover" data-testid="go-home">
+      <button onClick={onExit} title={`${t('top.home')} · build ${__FLO_BUILD__}`} aria-label={t('top.home')} className="flex h-8 items-center gap-1.5 rounded-md px-2 hover:bg-field-hover" data-testid="go-home">
         <Logo size={18} />
         <LayoutGrid size={13} className="text-fg-subtle" />
       </button>

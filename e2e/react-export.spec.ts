@@ -58,7 +58,7 @@ test('exported React project builds and runs independently', async ({ page, brow
     execSync('npm install --no-audit --no-fund --prefer-offline --loglevel=error', { cwd: root, stdio: 'pipe', timeout: 240_000 });
     execSync('npm run build', { cwd: root, stdio: 'pipe', timeout: 120_000 }); // tsc --noEmit && vite build
 
-    server = spawn('npx', ['vite', 'preview', '--port', '4190', '--strictPort'], { cwd: root, stdio: 'pipe' });
+    server = spawn('npx', ['vite', 'preview', '--port', '4190', '--strictPort'], { cwd: root, stdio: 'pipe', detached: true });
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('preview did not start')), 30_000);
       server!.stdout!.on('data', (d: Buffer) => {
@@ -85,7 +85,14 @@ test('exported React project builds and runs independently', async ({ page, brow
     expect(errors).toEqual([]);
     await app.close();
   } finally {
-    server?.kill();
+    // Kill the whole process group (npx → vite), not just npx.
+    if (server?.pid) {
+      try {
+        process.kill(-server.pid, 'SIGTERM');
+      } catch {
+        server.kill();
+      }
+    }
     rmSync(dir, { recursive: true, force: true });
   }
 });
