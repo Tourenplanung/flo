@@ -178,6 +178,22 @@ hash routing), `src/styles/tokens.css`, `public/assets/*`, `ACCESSIBILITY.md`, `
 Text is emitted as JavaScript string literals and attributes via `JSON.stringify`, so design
 content can never inject markup or code into the generated project.
 
+## React import from GitHub
+
+```
+core/importers/github.ts      URL parsing, read-only GitHub REST client (commit-pinned, size limits), import resolution
+core/importers/reactImport.ts Babel AST → symbolic evaluator → element tree → flö layers
+core/importers/tailwind.ts    Tailwind utilities / inline styles → StyleSpec (mobile + desktop)
+editor/githubImport.ts        fetch dependencies, convert, place on the “Libreria GitHub” page (one transaction)
+ui/editor/GithubImportDialog  URL/token → file picker → component picker → report
+```
+
+The importer never executes imported code: it walks the AST and evaluates only pure
+expressions (literals, props, `cn/clsx/cva`, array `.map` over constants, conditionals) with a
+step budget; everything else becomes a named placeholder. Raw HTML, scripts and event
+handlers are dropped. The parser chunk is lazy-loaded. Imported components keep their origin
+in `component.source` (repo, path, commit, license).
+
 ## Persistence and security
 
 - Projects are stored as validated documents in IndexedDB (Dexie); images as blobs.
@@ -187,7 +203,7 @@ content can never inject markup or code into the generated project.
   rendered as React text (never HTML). Imported image payloads are restricted to
   PNG/JPEG/WebP/GIF data URLs whose type matches the asset metadata (no SVG).
 - Imported projects get a new id so they cannot overwrite local projects.
-- No code from project files or (future) AI output is ever executed. Workflow node kinds and
+- No code from project files, GitHub imports or AI output is ever executed. Workflow node kinds and
   parameters are validated against the catalog; unknown kinds are rejected.
 - Exported HTML escapes all user text and attribute values.
 - AI: provider credentials never reach the browser (Claude via local proxy with session

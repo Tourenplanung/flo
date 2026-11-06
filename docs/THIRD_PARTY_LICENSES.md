@@ -15,6 +15,7 @@ each package in `node_modules`.
 | dexie | 4.0.11 | Apache-2.0 |
 | @xyflow/react (React Flow) | 12.12.0 | MIT |
 | lucide-react | 0.544.0 | ISC |
+| @babel/parser (+ @babel/types) | 7.29.9 | MIT |
 | @fontsource-variable/inter (Inter typeface) | 5.2.6 | OFL-1.1 |
 | @fontsource-variable/space-grotesk | 5.2.8 | OFL-1.1 |
 | @fontsource-variable/playfair-display | 5.2.6 | OFL-1.1 |
@@ -47,3 +48,8 @@ Apache-2.0 requires attribution when redistributing. The production bundle inclu
 (Apache-2.0); the minifier does **not** keep its license header, so this file (or an
 equivalent notices page in the app) must ship with any public deployment.
 Release preparation (Milestone 7) will add an in-app "Licenses" view generated from this list.
+
+## Test fixtures
+
+`src/core/__tests__/fixtures/button.tsx.txt` is adapted from shadcn/ui (MIT License,
+Copyright (c) 2023 shadcn) and is used only as importer test input; it is not shipped.

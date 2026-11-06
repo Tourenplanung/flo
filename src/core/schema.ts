@@ -213,6 +213,16 @@ export const FrameRoleSchema = z.enum([
   'link',
 ]);
 
+export const ComponentSourceSchema = z.object({
+  kind: z.literal('github'),
+  repo: z.string().regex(/^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/),
+  path: z.string().max(500),
+  /** Commit sha the component was imported from. */
+  commit: z.string().regex(/^[0-9a-f]{40}$/),
+  license: z.string().max(100).nullable(),
+});
+export type ComponentSource = z.infer<typeof ComponentSourceSchema>;
+
 export const FrameNodeSchema = z.object({
   ...BaseNodeShape,
   type: z.literal('frame'),
@@ -225,6 +235,8 @@ export const FrameNodeSchema = z.object({
       set: z.string().max(100),
       variant: z.record(z.string().min(1).max(40), z.string().max(40)),
       description: z.string().max(500),
+      /** Where an imported component came from (informational; never fetched or executed). */
+      source: ComponentSourceSchema.optional(),
     })
     .nullable(),
 });

@@ -1,10 +1,12 @@
-import { Circle, Frame, Image as ImageIcon, Minus, Square, Type } from 'lucide-react';
+import { Circle, Frame, Github, Image as ImageIcon, Minus, Square, Type } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { createEllipse, createIcon, createImage, createLine, createPreset, createRect, createText, FRAME_PRESETS, UI_PRESETS, type NodeTree, type UIPreset } from '@/core/factory';
 import { ICON_NAMES, type DesignNode, type IconName } from '@/core/schema';
 import { insertTree, resolveInsertTarget } from '@/editor/actions';
 import { useT, type MessageKey } from '@/i18n';
-import { getProject } from '@/store/docStore';
+import { githubComponents, insertGithubCopy } from '@/editor/githubImport';
+import { getProject, useDocStore } from '@/store/docStore';
+import { useGithubImport } from '../GithubImportDialog';
 import { DESIGN_ICONS } from '@/ui/common/icons';
 import { addFramePreset } from '../inspector/Inspector';
 
@@ -107,6 +109,7 @@ export function InsertPanel() {
           ))}
         </div>
       </section>
+      <GithubSection />
       <section>
         <h3 className="mb-2 text-[11px] font-semibold">{t('insert.icons')}</h3>
         <div className="grid grid-cols-8 gap-1">
@@ -127,5 +130,47 @@ export function InsertPanel() {
         </div>
       </section>
     </div>
+  );
+}
+
+function GithubSection() {
+  const t = useT();
+  const project = useDocStore((s) => s.project);
+  const groups = project ? githubComponents(project) : [];
+  return (
+    <section data-testid="insert-github">
+      <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold">
+        <Github size={12} /> {t('gh.section')}
+      </h3>
+      {!groups.length && <p className="mb-2 text-[10.5px] leading-4 text-fg-subtle">{t('gh.empty')}</p>}
+      {groups.map((g) => (
+        <div key={`${g.repo}::${g.set}`} className="mb-2">
+          <div className="mb-1 flex items-baseline justify-between gap-2 text-[10.5px]">
+            <span className="truncate text-fg-muted">{g.set}</span>
+            <span className="truncate text-fg-subtle">{g.repo}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {g.items.map((c) => {
+              const variant = Object.values(c.component?.variant ?? {}).join(' · ');
+              return (
+                <Tile key={c.id} testId={`insert-gh-${c.name}`} label={variant || g.set} onClick={() => insertGithubCopy(c.id)}>
+                  <span title={t('gh.insertCopy')} className="flex h-5 items-center rounded border border-fg-subtle px-1.5 text-[8px] text-fg-subtle">
+                    {'</>'}
+                  </span>
+                </Tile>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        data-testid="gh-open"
+        onClick={() => useGithubImport.getState().setOpen(true)}
+        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line-strong text-[11px] text-fg-muted hover:border-accent hover:text-fg"
+      >
+        <Github size={13} /> {t('gh.open')}
+      </button>
+    </section>
   );
 }

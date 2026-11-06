@@ -199,6 +199,20 @@ export function nodeStyle(node: DesignNode, ctx: StyleContext): CSSDecl {
   if (node.maxWidth != null) css.maxWidth = px(node.maxWidth);
   if (node.minHeight != null) css.minHeight = px(node.minHeight);
   if (node.maxHeight != null) css.maxHeight = px(node.maxHeight);
+  // "Fill up to a max size" in a center-aligned stack stays centered (like `mx-auto max-w-*`).
+  if (inFlow && parent?.type === 'frame' && parent.layout.counterAlign === 'center') {
+    if (parentLayout === 'vertical' && node.sizing.horizontal === 'fill' && node.maxWidth != null) {
+      delete css.alignSelf;
+      css.width = '100%';
+      css.marginLeft = 'auto';
+      css.marginRight = 'auto';
+    } else if (parentLayout === 'horizontal' && node.sizing.vertical === 'fill' && node.maxHeight != null) {
+      delete css.alignSelf;
+      css.height = '100%';
+      css.marginTop = 'auto';
+      css.marginBottom = 'auto';
+    }
+  }
 
   // Container layout
   if (node.type === 'frame') {

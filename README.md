@@ -37,6 +37,10 @@ On a fresh machine, install the Playwright browser once with `npx playwright ins
 - **Tools**: `V` select · `H`/Space pan · `F` frame · `R` rectangle · `O` ellipse · `L` line · `T` text.
 - **Insert panel**: device frames, shapes, image placeholders, UI presets (button, input, card,
   navigation, hero section, container) and icons — all inserted as editable layer trees.
+- **Da GitHub** (Insert panel): paste a GitHub URL (repository, folder or `.tsx/.jsx` file) to
+  import React components — Tailwind/shadcn styles, responsive classes, variants and icons are
+  converted into editable flö layers and stored on the *Libreria GitHub* page. The code is only
+  read, never executed. Private repositories need a read-only token (kept in memory only).
 - **Auto layout**: select a frame → *Auto layout* → vertical/horizontal, gap, padding, alignment;
   children can be *Fixed*, *Hug* or *Fill*.
 - **Canvas**: click selects within the current context, double-click drills in / edits text,

@@ -1,0 +1,42 @@
+import { ArrowRight, Check, Rocket } from 'lucide-react';
+import { Button } from './button';
+
+const features = [
+  { title: 'Veloce', text: 'Pagine pronte in pochi minuti.' },
+  { title: 'Sicuro', text: 'Nessun codice eseguito.' },
+  { title: 'Flessibile', text: 'Ogni livello è modificabile.' },
+];
+
+function FeatureCard({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <Check className="h-5 w-5 text-emerald-600" />
+      <h3 className="mt-4 text-lg font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-gray-600">{text}</p>
+    </div>
+  );
+}
+
+export default function Hero({ title = 'Costruisci più in fretta' }: { title?: string }) {
+  return (
+    <section className="bg-gradient-to-b from-indigo-50 to-white px-6 py-24 md:px-12">
+      <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center">
+        <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">Novità</span>
+        <h1 className="text-4xl font-bold tracking-tight text-gray-900 md:text-6xl">{title}</h1>
+        <p className="max-w-2xl text-lg text-gray-600">Un sottotitolo che spiega <strong>il valore</strong> del prodotto.</p>
+        <div className="flex gap-3">
+          <Button size="lg">Inizia <ArrowRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="lg">Scopri</Button>
+          <Rocket />
+        </div>
+        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+          {features.map((f) => (
+            <FeatureCard key={f.title} title={f.title} text={f.text} />
+          ))}
+        </div>
+        <nav className="hidden md:flex gap-4"><a href="#">Link</a></nav>
+        <input placeholder="Email" className="w-full rounded-md border px-3 py-2" />
+      </div>
+    </section>
+  );
+}

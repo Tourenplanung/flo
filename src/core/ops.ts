@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import {
   AssetMetaSchema,
+  ComponentSourceSchema,
   DesignNodeSchema,
   GuideSchema,
   HexColorSchema,
@@ -90,7 +91,7 @@ export const DocOpSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('setComponent'),
     id: IdSchema,
-    component: z.object({ set: z.string().max(100), variant: z.record(z.string().min(1).max(40), z.string().max(40)), description: z.string().max(500) }).nullable(),
+    component: z.object({ set: z.string().max(100), variant: z.record(z.string().min(1).max(40), z.string().max(40)), description: z.string().max(500), source: ComponentSourceSchema.optional() }).nullable(),
   }),
   z.object({ type: z.literal('setInstanceComponent'), id: IdSchema, componentId: IdSchema }),
   z.object({ type: z.literal('setInstanceOverride'), id: IdSchema, sourceId: IdSchema, props: InstanceOverrideSchema }),

@@ -187,11 +187,35 @@ in strict mode.
 - Fonts are loaded from Google Fonts in the generated `index.html` (bundled families only).
 - Tailwind CSS and other frameworks are not offered yet.
 
+## Import React components from GitHub ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Insert panel → *Da GitHub*: import from a repository, folder or file URL | ✅ | public repos without login; optional read-only token for private repos (memory only) |
+| Static conversion — the code is parsed (`@babel/parser`), never executed | ✅ | symbolic evaluator: props/defaults, `cn/clsx/twMerge`, `cva`, `.map` over constants, conditionals, local components |
+| JSX → frames (auto layout), text, icons, image placeholders, inputs | ✅ | flex/grid/block flow, hug/fill/fixed sizing, margins → gaps |
+| Tailwind (v3 palette + shadcn/ui theme) and inline styles → editable properties | ✅ | unknown classes listed in the report |
+| Mobile-first `sm:/md:/lg:` → desktop base + `bp-mobile` overrides | ✅ | grids stack on mobile; `hidden md:flex` |
+| shadcn `cva` variants → one flö component per variant value | ✅ | |
+| Local imports resolved across files (`./x`, `@/x`), pinned to the commit sha | ✅ | depth-limited |
+| lucide / heroicons → flö icons; unknown icons and external components → placeholders + warnings | ✅ | |
+| Components stored on a “Libreria GitHub” page with origin (repo, file, commit, license) | ✅ | click in the Insert panel = editable detached copy; Components tab = instances |
+| License shown before import; warning when none is declared | ✅ | |
+| Safety: no eval/execution, `dangerouslySetInnerHTML`/scripts dropped, size/step/node limits, URL validation | ✅ | tests in `githubImport.test.ts` |
+
+### Known limitations
+
+- State, effects and event handlers are not imported (a component is captured in its default state).
+- Only Tailwind defaults and the default shadcn theme are known; custom `tailwind.config` colors
+  and CSS files/CSS modules are not read (reported as unknown classes).
+- Images and inline SVGs become placeholders; components from npm packages become placeholders.
+- `grid-cols-*` is approximated with rows of auto-layout frames.
+
 ## Milestone 7 — Release preparation ⬜
 PWA/offline service worker, performance (main JS ≈ 228 kB gzip; workflow view lazy-loaded),
 accessibility review, security review, in-app third-party license notices, deployment.
 
 ## Test totals
 
-82 unit/component tests (Vitest) · 11 end-to-end tests (Playwright), including a test that
+93 unit/component tests (Vitest) · 12 end-to-end tests (Playwright), including a test that
 installs, builds and runs an exported React project.

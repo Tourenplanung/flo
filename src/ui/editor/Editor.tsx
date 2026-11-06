@@ -11,6 +11,7 @@ import { Toast } from '@/ui/common/Toast';
 import { AssistantPanel } from '@/ui/ai/AssistantPanel';
 import { PrototypePlayer } from '@/ui/prototype/PrototypePlayer';
 import { AiSettingsDialog, CostConfirmDialog } from '@/ui/ai/AiDialogs';
+import { GithubImportDialog } from './GithubImportDialog';
 import { Canvas } from './canvas/Canvas';
 import { Inspector } from './inspector/Inspector';
 import { Component, History, Image as ImageIcon, Layers, Palette, PlusSquare } from 'lucide-react';
@@ -136,6 +137,7 @@ function EditorShell({ onExit }: { onExit: () => void }) {
       )}
       <Toast />
       <AiSettingsDialog />
+      <GithubImportDialog />
       <PrototypePlayer />
       <CostConfirmDialog />
     </div>
