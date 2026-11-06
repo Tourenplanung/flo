@@ -91,9 +91,12 @@ function EditorShell({ onExit }: { onExit: () => void }) {
         onExit();
       }} />
       {mode === 'workflow' ? (
-        <Suspense fallback={<div className="flex-1 bg-canvas" />}>
-          <WorkflowView />
-        </Suspense>
+        <div className="relative flex min-h-0 flex-1">
+          <Suspense fallback={<div className="flex-1 bg-canvas" />}>
+            <WorkflowView />
+          </Suspense>
+          <AssistantPanel />
+        </div>
       ) : (
       <div className="relative flex min-h-0 flex-1">
         <SidePanel side="left" className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" label="Pannello sinistro">

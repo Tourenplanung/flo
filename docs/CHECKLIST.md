@@ -238,5 +238,5 @@ accessibility review, security review, in-app third-party license notices, deplo
 
 ## Test totals
 
-100 unit/component tests (Vitest) · 15 end-to-end tests (Playwright), including a test that
+100 unit/component tests (Vitest) · 16 end-to-end tests (Playwright), including a test that
 installs, builds and runs an exported React project.

@@ -24,9 +24,10 @@ function insertWorkflow(wf: Workflow): boolean {
   return true;
 }
 
-export function createEmptyWorkflow() {
+export function createEmptyWorkflow(): string | null {
   const n = (getProject()?.workflows.length ?? 0) + 1;
-  insertWorkflow({ id: createId(), name: `${t('wf.untitled')} ${n}`, nodes: [], edges: [] });
+  const id = createId();
+  return insertWorkflow({ id, name: `${t('wf.untitled')} ${n}`, nodes: [], edges: [] }) ? id : null;
 }
 
 export function createFromTemplate(tpl: TemplateDef) {

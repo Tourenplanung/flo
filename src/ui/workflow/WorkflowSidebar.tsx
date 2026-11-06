@@ -156,7 +156,7 @@ export function WorkflowSidebar() {
         <span className="text-[11px] font-semibold">{t('wf.nodes')}</span>
         <span className="text-[10px] text-fg-subtle">{t('wf.dragHint')}</span>
       </div>
-      <div className={cx('min-h-0 flex-1 overflow-y-auto px-2 py-2', !active && 'pointer-events-none opacity-40')} data-testid="wf-palette">
+      <div className={'min-h-0 flex-1 overflow-y-auto px-2 py-2'} data-testid="wf-palette">
         {CATEGORIES.map((cat) => (
           <section key={cat.id} className="mb-3">
             <h4 className="mb-1 flex items-center gap-1.5 px-1 text-[10.5px] font-semibold uppercase tracking-wide text-fg-subtle">
@@ -174,13 +174,16 @@ export function WorkflowSidebar() {
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 onClick={() => {
-                  if (!active) return;
-                  const n = active.nodes.length;
-                  const maxX = active.nodes.reduce((m, x) => Math.max(m, x.position.x), -320);
-                  addNode(active.id, s.kind, { x: maxX + 300, y: 80 + (n % 3) * 40 });
+                  // No workflow yet: create one so the click always does something.
+                  const wfId = active?.id ?? createEmptyWorkflow();
+                  if (!wfId) return;
+                  const nodes = active?.nodes ?? [];
+                  const n = nodes.length;
+                  const maxX = nodes.reduce((m, x) => Math.max(m, x.position.x), -320);
+                  addNode(wfId, s.kind, { x: maxX + 300, y: 80 + (n % 3) * 40 });
                   closeDrawers();
                 }}
-                className="flex h-7 w-full items-center gap-2 rounded px-1.5 text-left text-[11px] text-fg-muted hover:bg-field-hover hover:text-fg"
+                className="flex h-7 w-full items-center gap-2 rounded px-1.5 text-left text-[11px] text-fg/85 hover:bg-field-hover hover:text-fg"
               >
                 <span className="flex-1 truncate">{s.label[lang]}</span>
                 {s.availability === 'ai' && <Bot size={11} className="text-[#F5C55B]" aria-label={t('wf.needsAI')} />}

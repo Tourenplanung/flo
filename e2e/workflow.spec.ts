@@ -108,3 +108,16 @@ test('workflow: brief-to-design template generates editable screens, caches, per
   await expect(frames).toHaveCount(15);
   expect(errors).toEqual([]);
 });
+
+test('workflow mode always responds: node click creates a workflow, AI panel opens', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('new-project').click();
+  await page.getByTestId('mode-workflow').click();
+  await expect(page.getByTestId('workflow-view')).toBeVisible();
+  // No workflow yet: clicking a node creates one and adds the node.
+  await page.getByTestId('wf-add-brief-input').click();
+  await expect(page.locator('.react-flow__node')).toHaveCount(1);
+  // The assistant is available in workflow mode too.
+  await page.getByTestId('ai-toggle').click();
+  await expect(page.getByTestId('ai-panel')).toBeVisible();
+});
