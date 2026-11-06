@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { createEllipse, createIcon, createImage, createLine, createPreset, createRect, createText, FRAME_PRESETS, UI_PRESETS, type NodeTree, type UIPreset } from '@/core/factory';
 import { ICON_NAMES, type DesignNode, type IconName } from '@/core/schema';
 import { insertTree, resolveInsertTarget } from '@/editor/actions';
+import { closeDrawers } from '@/ui/common/layout';
 import { useT, type MessageKey } from '@/i18n';
 import { githubComponents, insertGithubCopy } from '@/editor/githubImport';
 import { getProject, useDocStore } from '@/store/docStore';
@@ -19,6 +20,7 @@ function insertInto(make: (parentId: string) => NodeTree, label: string) {
   if (!project) return;
   const parentId = resolveInsertTarget(project);
   insertTree(make(parentId), parentId, undefined, label);
+  closeDrawers();
 }
 
 function Tile({ label, onClick, children, testId }: { label: string; onClick: () => void; children: ReactNode; testId?: string }) {
@@ -73,7 +75,10 @@ export function InsertPanel() {
         <h3 className="mb-2 text-[11px] font-semibold">{t('insert.frames')}</h3>
         <div className="grid grid-cols-2 gap-1.5">
           {FRAME_PRESETS.slice(0, 6).map((p) => (
-            <Tile key={p.id} testId={`insert-frame-${p.id}`} label={`${p.name} · ${p.width}×${p.height}`} onClick={() => addFramePreset(p.width, p.height, p.name)}>
+            <Tile key={p.id} testId={`insert-frame-${p.id}`} label={`${p.name} · ${p.width}×${p.height}`} onClick={() => {
+              addFramePreset(p.width, p.height, p.name);
+              closeDrawers();
+            }}>
               <Frame size={16} />
             </Tile>
           ))}

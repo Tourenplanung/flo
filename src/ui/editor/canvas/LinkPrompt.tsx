@@ -62,15 +62,18 @@ export function LinkPrompt() {
   };
 
   // Keep the popover inside the canvas.
-  const left = Math.max(12, Math.min(prompt.x + 12, (ref.current?.closest('[data-canvas-root]')?.clientWidth ?? 1200) - 372));
-  const top = Math.max(12, prompt.y - 20);
+  const box = ref.current?.closest('[data-canvas-root]');
+  const cw = box?.clientWidth ?? window.innerWidth;
+  const ch = box?.clientHeight ?? window.innerHeight;
+  const left = Math.max(12, Math.min(prompt.x + 12, cw - Math.min(360, cw - 24) - 12));
+  const top = Math.max(12, Math.min(prompt.y - 20, ch - 340));
 
   return (
     <div
       role="dialog"
       aria-label={t('pp.linkTitle', { from: source.name, to: dest.name })}
       data-testid="link-prompt"
-      className="absolute z-30 flex w-[360px] flex-col gap-2 rounded-xl border border-line-strong bg-elevated p-3 shadow-2xl"
+      className="absolute z-30 flex w-[min(360px,calc(100%-24px))] flex-col gap-2 rounded-xl border border-line-strong bg-elevated p-3 shadow-2xl"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}

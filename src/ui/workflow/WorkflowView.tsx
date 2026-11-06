@@ -7,6 +7,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { FlowCanvas } from './FlowCanvas';
 import { NodeInspector } from './NodeInspector';
 import { WorkflowSidebar } from './WorkflowSidebar';
+import { DrawerButtons, SidePanel } from '@/ui/common/layout';
 
 export function WorkflowView() {
   const t = useT();
@@ -21,7 +22,7 @@ export function WorkflowView() {
   }, [active, workflows]);
 
   return (
-    <div className="flex min-h-0 flex-1" data-testid="workflow-view">
+    <div className="relative flex min-h-0 flex-1" data-testid="workflow-view">
       <WorkflowSidebar />
       <main className="relative min-w-0 flex-1 bg-canvas">
         {active ? (
@@ -56,8 +57,11 @@ export function WorkflowView() {
             </button>
           </div>
         )}
+        <DrawerButtons left={t('drawer.nodes')} right={t('drawer.settings')} />
       </main>
-      <aside className="w-72 shrink-0 overflow-y-auto border-l border-line bg-panel">{active && <NodeInspector workflow={active} />}</aside>
+      <SidePanel side="right" className="w-72 shrink-0 overflow-y-auto border-l border-line bg-panel" label="Node inspector">
+        {active && <NodeInspector workflow={active} />}
+      </SidePanel>
     </div>
   );
 }

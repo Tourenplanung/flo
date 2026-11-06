@@ -223,11 +223,20 @@ in strict mode.
 | Optional AI interpretation (Ollama/Claude) for free-form prompts | ✅ | ids/values validated (`aiLinksToSpecs`); paid calls need consent |
 | A new link replaces an existing one of the same kind instead of duplicating it | ✅ | |
 
+## Compact screens (phones, narrow preview panes) ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Below 1024 px side panels become drawers (Pannelli / Proprietà, Nodi / Impostazioni) | ✅ | `ui/common/layout.tsx` |
+| Compact top bar; drawing tools and zoom in a floating strip on the canvas | ✅ | |
+| Drawers close after inserting so the result is visible | ✅ | |
+| Touch: one-finger drag on empty canvas pans | ✅ | pinch-zoom not yet supported (use the zoom buttons) |
+
 ## Milestone 7 — Release preparation ⬜
 PWA/offline service worker, performance (main JS ≈ 228 kB gzip; workflow view lazy-loaded),
 accessibility review, security review, in-app third-party license notices, deployment.
 
 ## Test totals
 
-100 unit/component tests (Vitest) · 14 end-to-end tests (Playwright), including a test that
+100 unit/component tests (Vitest) · 15 end-to-end tests (Playwright), including a test that
 installs, builds and runs an exported React project.

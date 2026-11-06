@@ -1,3 +1,4 @@
+import { closeDrawers, SidePanel } from '@/ui/common/layout';
 import { Bot, Clock, Copy, LayoutTemplate, Plus, Save, Trash2, Workflow as WorkflowIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { CATEGORIES, NODE_SPECS } from '@/core/workflow/catalog';
@@ -38,6 +39,7 @@ function TemplatesMenu({ onClose }: { onClose: () => void }) {
           onClick={() => {
             createFromTemplate(tpl);
             onClose();
+            closeDrawers();
           }}
         >
           <div className="text-[11px] font-medium text-fg">{tpl.name[lang]}</div>
@@ -86,7 +88,7 @@ export function WorkflowSidebar() {
   const active = workflows.find((w) => w.id === activeId);
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" aria-label={t('wf.workflows')}>
+    <SidePanel side="left" className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" label={t('wf.workflows')}>
       <div className="border-b border-line">
         <div className="flex h-9 items-center justify-between pl-3 pr-1.5">
           <span className="text-[11px] font-semibold">{t('wf.workflows')}</span>
@@ -176,6 +178,7 @@ export function WorkflowSidebar() {
                   const n = active.nodes.length;
                   const maxX = active.nodes.reduce((m, x) => Math.max(m, x.position.x), -320);
                   addNode(active.id, s.kind, { x: maxX + 300, y: 80 + (n % 3) * 40 });
+                  closeDrawers();
                 }}
                 className="flex h-7 w-full items-center gap-2 rounded px-1.5 text-left text-[11px] text-fg-muted hover:bg-field-hover hover:text-fg"
               >
@@ -187,6 +190,6 @@ export function WorkflowSidebar() {
           </section>
         ))}
       </div>
-    </aside>
+    </SidePanel>
   );
 }

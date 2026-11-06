@@ -8,6 +8,7 @@ import { useEditorStore, type LeftTab } from '@/store/editorStore';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cx } from '@/ui/common/controls';
 import { Toast } from '@/ui/common/Toast';
+import { DrawerButtons, SidePanel } from '@/ui/common/layout';
 import { AssistantPanel } from '@/ui/ai/AssistantPanel';
 import { PrototypePlayer } from '@/ui/prototype/PrototypePlayer';
 import { AiSettingsDialog, CostConfirmDialog } from '@/ui/ai/AiDialogs';
@@ -23,7 +24,7 @@ import { InsertPanel } from './panels/InsertPanel';
 import { LayersPanel } from './panels/LayersPanel';
 import { PagesPanel } from './panels/PagesPanel';
 import { useEditorShortcuts } from './shortcuts';
-import { TopBar } from './TopBar';
+import { CompactTools, TopBar } from './TopBar';
 import { zoomToFit } from './viewportActions';
 
 /** The workflow canvas (React Flow) is loaded on demand to keep the initial bundle small. */
@@ -94,8 +95,8 @@ function EditorShell({ onExit }: { onExit: () => void }) {
           <WorkflowView />
         </Suspense>
       ) : (
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" aria-label="Pannello sinistro">
+      <div className="relative flex min-h-0 flex-1">
+        <SidePanel side="left" className="flex w-60 shrink-0 flex-col border-r border-line bg-panel" label="Pannello sinistro">
           <PagesPanel />
           <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-2" role="tablist">
             {tabs.map((tab) => (
@@ -125,14 +126,16 @@ function EditorShell({ onExit }: { onExit: () => void }) {
             {leftTab === 'tokens' && <TokensPanel />}
             {leftTab === 'history' && <HistoryPanel />}
           </div>
-        </aside>
+        </SidePanel>
         <main className="relative min-w-0 flex-1">
           <Canvas />
+          <CompactTools />
+          <DrawerButtons left={t('drawer.panels')} right={t('drawer.properties')} />
         </main>
         <AssistantPanel />
-        <aside className="w-64 shrink-0 overflow-y-auto border-l border-line bg-panel" aria-label="Inspector">
+        <SidePanel side="right" className="w-64 shrink-0 overflow-y-auto border-l border-line bg-panel" label="Inspector">
           <Inspector />
-        </aside>
+        </SidePanel>
       </div>
       )}
       <Toast />

@@ -1,3 +1,4 @@
+import { useCompact } from '@/ui/common/layout';
 import { AlertTriangle, Check, Loader2, Settings2, Sparkles, Square, Undo2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { runDesignAgent } from '@/core/ai/agent';
@@ -43,6 +44,7 @@ function consentProvider(base: AiProvider): AiProvider {
 let turnSeq = 0;
 
 export function AssistantPanel() {
+  const compact = useCompact();
   const t = useT();
   const open = useAiStore((s) => s.panelOpen);
   const providerId = useAiStore((s) => s.provider);
@@ -114,7 +116,11 @@ export function AssistantPanel() {
   };
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel" data-testid="ai-panel" aria-label={t('ai.title')}>
+    <aside
+      className={compact ? 'absolute inset-y-0 right-0 z-40 flex w-[min(360px,92vw)] flex-col border-l border-line bg-panel shadow-2xl' : 'flex w-80 shrink-0 flex-col border-l border-line bg-panel'}
+      data-testid="ai-panel"
+      aria-label={t('ai.title')}
+    >
       <div className="flex h-10 items-center justify-between border-b border-line pl-3 pr-1.5">
         <span className="flex items-center gap-1.5 text-[12px] font-semibold">
           <Sparkles size={14} className="text-accent" /> {t('ai.title')}

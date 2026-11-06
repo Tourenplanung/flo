@@ -1,3 +1,4 @@
+import { closeDrawers, useCompact } from '@/ui/common/layout';
 import {
   ChevronDown,
   Circle,
@@ -6,10 +7,12 @@ import {
   Hand,
   Image as ImageIcon,
   Keyboard,
+  Maximize,
   LayoutGrid,
   Minus,
   MousePointer2,
   Play,
+  Plus,
   Redo2,
   Sparkles,
   Square,
@@ -54,15 +57,16 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
   const canUndo = useDocStore((s) => s.past.length > 0);
   const canRedo = useDocStore((s) => s.future.length > 0);
   const imageRef = useRef<HTMLInputElement>(null);
+  const compact = useCompact();
 
   return (
-    <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-2">
+    <header className={cx('flex h-11 shrink-0 items-center border-b border-line bg-panel px-2', compact ? 'gap-0.5' : 'gap-2')} data-compact={compact || undefined}>
       <button onClick={onExit} title={t('top.home')} aria-label={t('top.home')} className="flex h-8 items-center gap-1.5 rounded-md px-2 hover:bg-field-hover" data-testid="go-home">
         <Logo size={18} />
         <LayoutGrid size={13} className="text-fg-subtle" />
       </button>
-      <div className="mx-1 h-5 w-px bg-line" />
-      <nav className={cx('flex items-center gap-0.5', mode === 'workflow' && 'invisible')} aria-label="Tools" data-testid="toolbar">
+      {!compact && <div className="mx-1 h-5 w-px bg-line" />}
+      <nav className={cx('flex items-center gap-0.5', compact ? 'hidden' : mode === 'workflow' && 'invisible')} aria-label="Tools" data-testid="toolbar">
         {TOOLS.map(({ tool: tl, icon: Icon, key }) => (
           <IconButton
             key={tl}
@@ -91,7 +95,7 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
           }}
         />
       </nav>
-      <div className="mx-1 h-5 w-px bg-line" />
+      {!compact && <div className="mx-1 h-5 w-px bg-line" />}
       <IconButton label={`${t('top.undo')} (${shortcutLabel('mod+z')})`} disabled={!canUndo} onClick={undo} testId="undo">
         <Undo2 size={15} />
       </IconButton>
@@ -99,10 +103,16 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
         <Redo2 size={15} />
       </IconButton>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
-        <ProjectName name={project.name} />
-        <SaveIndicator status={saveStatus} />
-      </div>
+      {compact ? (
+        <div className="flex min-w-0 flex-1 justify-center">
+          <SaveIndicator status={saveStatus} dotOnly />
+        </div>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
+          <ProjectName name={project.name} />
+          <SaveIndicator status={saveStatus} />
+        </div>
+      )}
 
       <div className="flex rounded-md bg-field p-0.5" role="tablist" aria-label="Mode">
         {(['design', 'workflow'] as const).map((m) => (
@@ -111,10 +121,13 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
             role="tab"
             aria-selected={mode === m}
             data-testid={`mode-${m}`}
-            onClick={() => useEditorStore.getState().setMode(m)}
+            onClick={() => {
+              useEditorStore.getState().setMode(m);
+              closeDrawers();
+            }}
             className={cx('flex h-6 items-center gap-1.5 rounded-[5px] px-2.5 text-[11px]', mode === m ? 'bg-line-strong text-fg' : 'text-fg-muted hover:text-fg')}
           >
-            {m === 'design' ? <Frame size={12} /> : <Workflow size={12} />} {t(`mode.${m}`)}
+            {m === 'design' ? <Frame size={12} /> : <Workflow size={12} />} {!compact && t(`mode.${m}`)}
           </button>
         ))}
       </div>
@@ -125,8 +138,8 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
         <Sparkles size={15} />
       </IconButton>
       <ExportMenu />
-      <ShortcutsButton />
-      {mode === 'design' ? <ZoomMenu /> : <div className="w-16" />}
+      {!compact && <ShortcutsButton />}
+      {!compact && (mode === 'design' ? <ZoomMenu /> : <div className="w-16" />)}
     </header>
   );
 }
@@ -196,13 +209,13 @@ function ProjectName({ name }: { name: string }) {
   );
 }
 
-function SaveIndicator({ status }: { status: SaveStatus }) {
+function SaveIndicator({ status, dotOnly }: { status: SaveStatus; dotOnly?: boolean }) {
   const t = useT();
   const label = { saved: t('save.saved'), saving: t('save.saving'), unsaved: t('save.unsaved'), error: t('save.error') }[status];
   return (
-    <span data-testid="save-status" data-status={status} className="flex items-center gap-1.5 text-[11px] text-fg-subtle">
+    <span data-testid="save-status" data-status={status} title={label} className="flex items-center gap-1.5 text-[11px] text-fg-subtle">
       <span className={cx('h-1.5 w-1.5 rounded-full', status === 'saved' ? 'bg-success' : status === 'error' ? 'bg-danger' : 'bg-fg-subtle')} />
-      {label}
+      {!dotOnly && label}
     </span>
   );
 }
@@ -280,6 +293,34 @@ function ZoomMenu() {
           {item(`${snapping ? '✓ ' : '   '}${t('canvas.snapping')}`, () => useEditorStore.getState().toggleSnapping())}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Vertical tool strip over the canvas on compact screens (tools + zoom), replacing the top-bar tools. */
+export function CompactTools() {
+  const t = useT();
+  const compact = useCompact();
+  const tool = useEditorStore((s) => s.tool);
+  if (!compact) return null;
+  const cls = 'h-9 w-9';
+  return (
+    <div className="absolute left-2 top-14 z-20 flex flex-col gap-0.5 rounded-xl border border-line-strong bg-elevated/95 p-1 shadow-xl backdrop-blur" data-testid="compact-tools">
+      {TOOLS.map(({ tool: tl, icon: Icon }) => (
+        <IconButton key={tl} testId={`ctool-${tl}`} label={t(`tool.${tl}`)} active={tool === tl} onClick={() => useEditorStore.getState().setTool(tl)} className={cls}>
+          <Icon size={16} />
+        </IconButton>
+      ))}
+      <div className="mx-1.5 my-0.5 h-px bg-line" />
+      <IconButton label="Zoom +" onClick={() => zoomBy(1.25)} className={cls}>
+        <Plus size={16} />
+      </IconButton>
+      <IconButton label="Zoom −" onClick={() => zoomBy(0.8)} className={cls}>
+        <Minus size={16} />
+      </IconButton>
+      <IconButton label={t('canvas.zoomFit')} testId="ctool-fit" onClick={zoomToFit} className={cls}>
+        <Maximize size={15} />
+      </IconButton>
     </div>
   );
 }

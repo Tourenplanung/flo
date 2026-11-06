@@ -414,6 +414,13 @@ export function Canvas() {
     // Inside an instance: ⌘/Ctrl-click, or clicking while one of its layers is selected, reaches the inner layer.
     const v = hitId ? parseVirtualId(hitId) : null;
     if (v && hitId && (deep || s.selection.some((id) => parseVirtualId(id)?.instanceId === v.instanceId))) target = hitId;
+    if (!target && e.pointerType === 'touch' && !hitId) {
+      // Touch: dragging the empty canvas pans it (a tap still clears the selection).
+      s.select([]);
+      const v = getViewport();
+      gestureRef.current = { kind: 'pan', start: client, vp: { x: v.x, y: v.y } };
+      return;
+    }
     if (!target) {
       const scopeId = isTopFrameBackground ? path[0]!.id : s.pageId;
       if (!e.shiftKey) s.select([]);
