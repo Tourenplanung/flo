@@ -8,6 +8,7 @@ import { useT, type MessageKey } from '@/i18n';
 import { dispatch, useDocStore } from '@/store/docStore';
 import { useEditorStore } from '@/store/editorStore';
 import { Checkbox, IconButton, NumberField, Section, SelectField } from '@/ui/common/controls';
+import { PromptLinks } from './PromptLinks';
 
 const ACTIONS: InteractionAction['type'][] = ['navigate', 'back', 'open-overlay', 'close-overlay', 'toggle-visibility'];
 const TRANSITIONS: Transition['type'][] = ['instant', 'dissolve', 'slide-left', 'slide-right', 'slide-up', 'slide-down'];
@@ -75,6 +76,7 @@ export function PrototypeSection({ node }: { node: DesignNode }) {
           </IconButton>
         </div>
       )}
+      <PromptLinks sourceId={raw.id} testId="proto-prompt" />
       {list.length === 0 && <p className="text-[11px] text-fg-subtle">{t('proto.none')}</p>}
       {list.map((it, i) => {
         const a = it.action;

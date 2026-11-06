@@ -28,6 +28,7 @@ import { NodeView } from './NodeView';
 import { Overlay } from './Overlay';
 import { Rulers, RULER_SIZE } from './Rulers';
 import { BreakpointBar } from './BreakpointBar';
+import { LinkPrompt } from './LinkPrompt';
 
 type Gesture =
   | { kind: 'pan'; start: Point; vp: { x: number; y: number } }
@@ -45,7 +46,8 @@ type Gesture =
     }
   | { kind: 'resize'; id: string; dir: HandleDir; start: Point; rect: Rect; key: string }
   | { kind: 'draw'; tool: Tool; start: Point; startClient: Point; parentId: string; createdId: string | null; key: string }
-  | { kind: 'guide'; guideId: string; axis: 'x' | 'y'; key: string };
+  | { kind: 'guide'; guideId: string; axis: 'x' | 'y'; key: string }
+  | { kind: 'link'; sourceId: string };
 
 const DRAW_TOOLS: Tool[] = ['frame', 'rect', 'ellipse', 'line', 'text'];
 const DRAG_THRESHOLD = 3;
@@ -92,6 +94,18 @@ function nodeIdAtPoint(x: number, y: number): string | null {
     if (id) return id;
   }
   return null;
+}
+
+/** Screen (top-level frame) under a client point that a prototype link from `sourceId` may target. */
+function linkTargetAt(project: Project, sourceId: string, x: number, y: number): string | null {
+  const hit = nodeIdAtPoint(x, y);
+  if (!hit) return null;
+  const real = parseVirtualId(hit)?.instanceId ?? hit;
+  const screen = getNodePath(project, real)[0];
+  if (!screen || screen.type !== 'frame') return null;
+  const sourceScreen = getNodePath(project, sourceId)[0];
+  if (screen.id === sourceScreen?.id) return null;
+  return screen.id;
 }
 
 /** Container under a client point, ignoring the given nodes (and their subtrees). */
@@ -328,6 +342,14 @@ export function Canvas() {
     [startMove],
   );
 
+  const onLinkHandleDown = useCallback((e: RPointerEvent, sourceId: string) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    rootRef.current?.setPointerCapture(e.pointerId);
+    useEditorStore.getState().setLinkPrompt(null);
+    gestureRef.current = { kind: 'link', sourceId };
+  }, []);
+
   const onGuideDown = useCallback((e: RPointerEvent, guide: Guide) => {
     e.stopPropagation();
     rootRef.current?.setPointerCapture(e.pointerId);
@@ -420,6 +442,10 @@ export function Canvas() {
       return;
     }
     const world = toWorld(e.clientX, e.clientY);
+    if (g.kind === 'link') {
+      s.setLinkDrag({ sourceId: g.sourceId, to: world, targetId: linkTargetAt(project, g.sourceId, e.clientX, e.clientY) });
+      return;
+    }
     const zoom = getViewport().zoom;
     const threshold = 6 / zoom;
     const page = project.pages.find((p) => p.id === s.pageId)!;
@@ -581,6 +607,14 @@ export function Canvas() {
     const project = getProject();
     if (!g || !project || !s.pageId) return;
     const world = toWorld(e.clientX, e.clientY);
+
+    if (g.kind === 'link') {
+      s.setLinkDrag(null);
+      const destinationId = linkTargetAt(project, g.sourceId, e.clientX, e.clientY);
+      const box = rootRef.current?.getBoundingClientRect();
+      if (destinationId && box) s.setLinkPrompt({ sourceId: g.sourceId, destinationId, x: e.clientX - box.left, y: e.clientY - box.top });
+      return;
+    }
 
     if (g.kind === 'draw') {
       s.setTool('select');
@@ -748,7 +782,8 @@ export function Canvas() {
       >
         {page?.childIds.map((id) => <NodeView key={id} id={id} chain={chain} />)}
       </div>
-      <Overlay onHandleDown={onHandleDown} onFrameLabelDown={onFrameLabelDown} onGuideDown={onGuideDown} />
+      <Overlay onHandleDown={onHandleDown} onFrameLabelDown={onFrameLabelDown} onGuideDown={onGuideDown} onLinkHandleDown={onLinkHandleDown} />
+      <LinkPrompt />
       {showRulers && <Rulers onRulerDown={onRulerDown} />}
       <BreakpointBar />
       {dropActive && (

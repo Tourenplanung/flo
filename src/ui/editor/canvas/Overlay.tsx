@@ -4,11 +4,13 @@ import { unionRects } from '@/core/geometry';
 import type { Guide } from '@/core/schema';
 import { useDocStore } from '@/store/docStore';
 import { useEditorStore, useViewport } from '@/store/editorStore';
+import { useT } from '@/i18n';
 
 interface Props {
   onHandleDown: (e: RPointerEvent, dir: HandleDir) => void;
   onFrameLabelDown: (e: RPointerEvent, id: string) => void;
   onGuideDown: (e: RPointerEvent, guide: Guide) => void;
+  onLinkHandleDown?: (e: RPointerEvent, sourceId: string) => void;
 }
 
 const HANDLES: { dir: HandleDir; fx: number; fy: number; cursor: string }[] = [
@@ -24,7 +26,7 @@ const HANDLES: { dir: HandleDir; fx: number; fy: number; cursor: string }[] = [
 
 const fmt = (v: number) => String(Math.round(v * 10) / 10);
 
-export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown }: Props) {
+export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown, onLinkHandleDown }: Props) {
   const vp = useViewport();
   const rects = useEditorStore((s) => s.rects);
   const selection = useEditorStore((s) => s.selection);
@@ -34,6 +36,9 @@ export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown }: Props) 
   const editing = useEditorStore((s) => s.editingTextId);
   const tool = useEditorStore((s) => s.tool);
   const pageId = useEditorStore((s) => s.pageId);
+  const linkDrag = useEditorStore((s) => s.linkDrag);
+  const linkPrompt = useEditorStore((s) => s.linkPrompt);
+  const t = useT();
   const project = useDocStore((s) => s.project);
   const page = project?.pages.find((p) => p.id === pageId);
   if (!project || !page) return null;
@@ -179,6 +184,53 @@ export function Overlay({ onHandleDown, onFrameLabelDown, onGuideDown }: Props) 
           });
         })}
       </svg>
+
+      {/* Prototype link handle: drag onto another screen, then describe the link with a prompt */}
+      {single && sb && !editing && tool === 'select' && !linkDrag && onLinkHandleDown && (
+        <button
+          type="button"
+          data-testid="proto-link-handle"
+          title={t('pp.handle')}
+          aria-label={t('pp.handle')}
+          className="pointer-events-auto absolute flex h-4 w-4 items-center justify-center rounded-full border-2 border-accent bg-panel text-accent shadow hover:scale-125"
+          style={{ left: sb.x + sb.width + 12, top: sb.y + sb.height / 2 - 8, cursor: 'crosshair' }}
+          onPointerDown={(e) => onLinkHandleDown(e, single.id)}
+        >
+          <span className="block h-1.5 w-1.5 rounded-full bg-accent" />
+        </button>
+      )}
+      {(linkDrag || linkPrompt) &&
+        (() => {
+          const sourceId = linkDrag?.sourceId ?? linkPrompt!.sourceId;
+          const from = rects[sourceId];
+          const targetId = linkDrag ? linkDrag.targetId : linkPrompt!.destinationId;
+          const target = targetId ? rects[targetId] : undefined;
+          if (!from) return null;
+          const s1 = toScreen(from);
+          const x1 = s1.x + s1.width;
+          const y1 = s1.y + s1.height / 2;
+          let x2: number;
+          let y2: number;
+          if (target) {
+            const s2 = toScreen(target);
+            x2 = s2.x;
+            y2 = s2.y + Math.min(40, s2.height / 2);
+          } else {
+            x2 = linkDrag!.to.x * vp.zoom + vp.x;
+            y2 = linkDrag!.to.y * vp.zoom + vp.y;
+          }
+          const dx = Math.max(40, Math.abs(x2 - x1) / 2);
+          const ts = target ? toScreen(target) : null;
+          return (
+            <>
+              {ts && <div data-testid="proto-link-target" className="absolute rounded-sm border-2 border-accent bg-accent/10" style={{ left: ts.x, top: ts.y, width: ts.width, height: ts.height }} />}
+              <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+                <circle cx={x1} cy={y1} r={4} fill="var(--color-accent)" />
+                <path d={`M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`} fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeDasharray="6 4" markerEnd="url(#flo-arrow)" />
+              </svg>
+            </>
+          );
+        })()}
 
       {/* Marquee */}
       {marquee && (() => {

@@ -78,6 +78,12 @@ go to a screen with a transition, back, open/close an overlay, show/hide a layer
 the canvas show the links. ▶ in the top bar (or ⇧P) plays the prototype: ← back, R restart,
 Esc exit. Mark a frame as *Schermata iniziale* to choose where it starts.
 
+
+**With prompts:** select a layer, drag its round link handle onto another screen and describe
+the link (“al clic scorri da destra in 300 ms”, “apri come bottom sheet”, “al passaggio del
+mouse, dissolvenza lenta”). With nothing selected, the inspector's *Prototipo con prompt*
+creates a whole flow from text (“Il pulsante Scopri di Home porta a Dettaglio; in Dettaglio
+Indietro torna indietro”). Prompts are interpreted locally; an AI provider is optional.
 ## Workflow mode
 
 Switch **Design ↔ Workflow** in the top bar.

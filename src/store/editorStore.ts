@@ -1,6 +1,6 @@
 /** Editor UI state — never persisted inside the document. */
 import { create } from 'zustand';
-import type { SnapLine, Rect } from '@/core/geometry';
+import type { Point, SnapLine, Rect } from '@/core/geometry';
 import type { Project } from '@/core/schema';
 
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'line' | 'text' | 'image';
@@ -40,6 +40,12 @@ interface EditorState {
   /** Measured world-space rects of rendered nodes (from the DOM). */
   rects: Record<string, Rect>;
   toast: { id: number; message: string; tone: 'info' | 'error' } | null;
+  /** Live drag from the prototype link handle (world coordinates). */
+  linkDrag: { sourceId: string; to: Point; targetId: string | null } | null;
+  setLinkDrag: (d: EditorState['linkDrag']) => void;
+  /** Prompt asked after a link is dropped on a screen (client coordinates for placement). */
+  linkPrompt: { sourceId: string; destinationId: string; x: number; y: number } | null;
+  setLinkPrompt: (p: EditorState['linkPrompt']) => void;
 
   reset: (pageId: string) => void;
   setPage: (pageId: string) => void;
@@ -84,8 +90,8 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   toast: null,
 
   reset: (pageId) =>
-    set({ mode: 'design', breakpointId: null, pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {} }),
-  setPage: (pageId) => set({ pageId, selection: [], hoveredId: null, editingTextId: null }),
+    set({ mode: 'design', breakpointId: null, pageId, selection: [], hoveredId: null, tool: 'select', editingTextId: null, snapLines: [], marquee: null, rects: {}, linkDrag: null, linkPrompt: null }),
+  setPage: (pageId) => set({ pageId, selection: [], hoveredId: null, editingTextId: null, linkPrompt: null }),
   select: (ids) => {
     const cur = get().selection;
     if (cur.length === ids.length && cur.every((id, i) => id === ids[i])) return;
@@ -111,6 +117,10 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setMarquee: (marquee) => set({ marquee }),
   setRects: (rects) => set({ rects }),
   showToast: (message, tone = 'info') => set({ toast: { id: Date.now(), message, tone } }),
+  linkDrag: null,
+  setLinkDrag: (linkDrag) => set({ linkDrag }),
+  linkPrompt: null,
+  setLinkPrompt: (linkPrompt) => set({ linkPrompt }),
   restoreSelection: (ids, project) => {
     const valid = ids.filter((id) => project.nodes[id]);
     // Follow the selection to its page if needed.

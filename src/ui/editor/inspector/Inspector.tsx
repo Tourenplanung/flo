@@ -12,6 +12,7 @@ import { AlignRow, AutoLayoutSection, GeometrySection } from './LayoutSection';
 import { BreakpointBanner, ComponentSection, ConstraintsSection, InstanceLayerInspector, InstanceSection } from './SystemSections';
 import { isVirtualId } from '@/core/instance';
 import { PrototypeSection } from './PrototypeSection';
+import { PromptLinks } from './PromptLinks';
 import { zoomToRect } from '../viewportActions';
 
 /** Places a new top-level frame to the right of existing content on the page. */
@@ -84,6 +85,9 @@ export function Inspector() {
       <div data-testid="inspector">
         {tool === 'frame' && <FramePresets />}
         <PageSection />
+        <Section title={t('pp.flowTitle')}>
+          <PromptLinks multiline testId="flow-prompt" />
+        </Section>
         <p className="px-3 py-4 text-[11px] leading-4 text-fg-subtle">{t('insp.empty')}</p>
       </div>
     );

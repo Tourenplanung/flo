@@ -211,11 +211,23 @@ in strict mode.
 - Images and inline SVGs become placeholders; components from npm packages become placeholders.
 - `grid-cols-*` is approximated with rows of auto-layout frames.
 
+## Prototyping with prompts ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Drag the link handle (●) of a selected layer onto another screen → a prompt asks how to link them | ✅ | live curve + target highlight; Enter creates, Esc cancels |
+| Prompt understood offline (IT/EN): trigger, navigate/overlay/back/close/show-hide, animation, direction, duration, overlay position/backdrop | ✅ | `core/prototypePrompt.ts`, no AI and no cost |
+| Suggestion chips and live preview of the interpreted interaction | ✅ | |
+| Inspector → Prototipo: prompt for the selected layer (“vai a Dettaglio con dissolvenza veloce”) | ✅ | |
+| Nothing selected → *Prototipo con prompt*: a whole flow from text, layers/screens referred to by name or button label | ✅ | preview, unresolved sentences listed, applied as one undo step |
+| Optional AI interpretation (Ollama/Claude) for free-form prompts | ✅ | ids/values validated (`aiLinksToSpecs`); paid calls need consent |
+| A new link replaces an existing one of the same kind instead of duplicating it | ✅ | |
+
 ## Milestone 7 — Release preparation ⬜
 PWA/offline service worker, performance (main JS ≈ 228 kB gzip; workflow view lazy-loaded),
 accessibility review, security review, in-app third-party license notices, deployment.
 
 ## Test totals
 
-93 unit/component tests (Vitest) · 12 end-to-end tests (Playwright), including a test that
+100 unit/component tests (Vitest) · 14 end-to-end tests (Playwright), including a test that
 installs, builds and runs an exported React project.

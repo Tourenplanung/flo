@@ -162,6 +162,16 @@ capability, and are `unavailable` when no provider is configured. See `docs/AI.m
 - **Player UI** (`ui/prototype/PrototypePlayer.tsx`) renders screens with the same `nodeStyle`
   and token/instance resolution as the canvas; CSS keyframes provide the transitions.
 
+### Prompt-driven prototyping
+
+`core/prototypePrompt.ts` turns text into `Interaction`s deterministically: keyword
+grammars (IT/EN) for trigger, action, transition, direction, duration and overlay options;
+screens/layers are found by (accent-insensitive) name or button label, duplicates are
+disambiguated by the screen named in the sentence. `editor/prototypePrompt.ts` applies the
+result as one transaction and optionally asks the configured AI (structured output,
+validated by `aiLinksToSpecs`). UI: link handle + `LinkPrompt` popover on the canvas,
+`PromptLinks` in the inspector.
+
 ## Code export (Milestone 6)
 
 ```
