@@ -14,7 +14,7 @@ import { getProject, useDocStore } from '@/store/docStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getCache, useWorkflowStore } from '@/store/workflowStore';
 import { Checkbox, ColorField, cx, NumberField, Section, SelectField, TextField } from '@/ui/common/controls';
-import { downloadText } from '@/ui/common/download';
+import { downloadBlob, downloadText } from '@/ui/common/download';
 
 function ParamField({ field, value, onChange }: { field: FieldSpec; value: unknown; onChange: (v: unknown, mergeKey?: string) => void }) {
   const t = useT();
@@ -148,6 +148,34 @@ export function OutputPreview({ value }: { value: PortValue }) {
     case 'image':
       return <ImageThumb assetId={value.assetId} />;
     case 'code':
+      if (value.files.length > 1) {
+        return (
+          <div className="flex flex-col gap-1.5" data-testid="wf-code-project">
+            <button
+              data-testid="wf-code-zip"
+              className="flex items-center justify-center gap-1.5 rounded-md bg-accent-strong px-2 py-1.5 text-[11px] font-medium text-white hover:bg-accent"
+              onClick={async () => {
+                const { zipExport } = await import('@/core/export/react');
+                const files = value.files.map((f) => ({
+                  path: f.path,
+                  content: f.encoding === 'base64' ? Uint8Array.from(atob(f.content), (c) => c.charCodeAt(0)) : f.content,
+                }));
+                const zip = await zipExport(files, 'flo-export');
+                downloadBlob('flo-export-react.zip', new Blob([zip as BlobPart], { type: 'application/zip' }));
+              }}
+            >
+              <Download size={12} /> {t('wf.zip')}
+            </button>
+            <ul className="max-h-48 overflow-y-auto font-mono text-[10.5px] text-fg-muted">
+              {value.files.map((f) => (
+                <li key={f.path} className="truncate">
+                  {f.path}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col gap-1.5">
           {value.files.map((f) => (

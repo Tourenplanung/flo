@@ -56,7 +56,8 @@ export interface ImageValue {
 }
 export interface CodeValue {
   type: 'code';
-  files: { path: string; content: string }[];
+  /** Text files; binary files (images) are base64 with `encoding: 'base64'`. */
+  files: { path: string; content: string; encoding?: 'base64' }[];
 }
 
 export type PortValue = BriefValue | SitemapValue | FlowValue | DesignValue | StylesValue | ReportValue | ImageValue | CodeValue;
@@ -552,13 +553,13 @@ export const NODE_SPECS: NodeSpec[] = [
     kind: 'react-export',
     category: 'output',
     label: l('Esporta React', 'React export'),
-    description: l('Progetto React + TypeScript. In arrivo con la Milestone 6.', 'React + TypeScript project. Coming with Milestone 6.'),
+    description: l('Genera un progetto React + TypeScript (Vite) avviabile: schermate, componenti, token, breakpoint e prototipo.', 'Generates a runnable React + TypeScript (Vite) project: screens, components, tokens, breakpoints and prototype.'),
     inputs: [{ id: 'design', type: 'design', label: l('Design', 'Design') }],
     outputs: [{ id: 'code', type: 'code', label: l('Codice', 'Code') }],
-    params: noParams,
-    defaults: {},
-    fields: [],
-    availability: 'planned',
+    params: z.object({ name: z.string().min(1).max(100) }),
+    defaults: { name: 'flo-export' },
+    fields: [{ key: 'name', kind: 'text', label: l('Nome del progetto', 'Project name') }],
+    availability: 'ready',
   }),
 ];
 

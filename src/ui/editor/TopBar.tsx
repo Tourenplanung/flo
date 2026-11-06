@@ -32,6 +32,7 @@ import { Logo } from '@/ui/common/Logo';
 import { downloadText } from '@/ui/common/download';
 import { SHORTCUTS, shortcutLabel } from './shortcuts';
 import { playFromSelection } from '@/editor/prototypeActions';
+import { exportHtmlFile, exportReactZip } from '@/editor/exportActions';
 import { setZoom, zoomBy, zoomToFit, zoomToSelection } from './viewportActions';
 
 const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string }[] = [
@@ -123,20 +124,47 @@ export function TopBar({ saveStatus, onExit }: { saveStatus: SaveStatus; onExit:
       <IconButton label={t('top.ai')} active={aiOpen} testId="ai-toggle" onClick={() => useAiStore.getState().setPanelOpen(!aiOpen)}>
         <Sparkles size={15} />
       </IconButton>
-      <IconButton
-        label={t('top.export')}
-        testId="export-project"
-        onClick={async () => {
-          const live = useDocStore.getState().project ?? undefined;
-          const text = await projectRepo.exportBundle(project.id, live).catch(() => null);
-          if (text) downloadText(`${project.name || 'flo'}.flo.json`, text);
-        }}
-      >
-        <Download size={15} />
-      </IconButton>
+      <ExportMenu />
       <ShortcutsButton />
       {mode === 'design' ? <ZoomMenu /> : <div className="w-16" />}
     </header>
+  );
+}
+
+function ExportMenu() {
+  const t = useT();
+  const project = useDocStore((s) => s.project)!;
+  const { open, setOpen, ref } = usePopover();
+  const item = (testId: string, label: string, action: () => void | Promise<void>) => (
+    <button
+      data-testid={testId}
+      className="flex w-full items-center rounded px-2 py-1.5 text-left text-[12px] text-fg hover:bg-accent hover:text-white"
+      onClick={() => {
+        setOpen(false);
+        void action();
+      }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div ref={ref} className="relative">
+      <IconButton label={t('exp.title')} active={open} testId="export-menu" onClick={() => setOpen(!open)}>
+        <Download size={15} />
+      </IconButton>
+      {open && (
+        <div className="absolute right-0 top-9 z-40 w-64 rounded-lg border border-line-strong bg-elevated p-1 shadow-2xl">
+          {item('export-project', t('exp.project'), async () => {
+            const live = useDocStore.getState().project ?? undefined;
+            const text = await projectRepo.exportBundle(project.id, live).catch(() => null);
+            if (text) downloadText(`${project.name || 'flo'}.flo.json`, text);
+          })}
+          {item('export-react', t('exp.react'), exportReactZip)}
+          {item('export-html', t('exp.html'), exportHtmlFile)}
+          <p className="px-2 pb-1 pt-1.5 text-[10.5px] leading-4 text-fg-subtle">{t('exp.scope')}</p>
+        </div>
+      )}
+    </div>
   );
 }
 

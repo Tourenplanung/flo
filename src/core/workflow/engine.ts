@@ -25,6 +25,7 @@ export interface EngineHost {
   /** Applies ops as one undoable transaction; throws on validation errors. */
   apply(ops: DocOp[], label: string): Project;
   getAssetDataUrl?(assetId: string): Promise<string | null>;
+  getAssetBytes?(assetId: string): Promise<Uint8Array | null>;
   iconSvg?(name: string, strokeWidth: number): Promise<string>;
   /** True when an AI provider is configured. */
   aiAvailable: boolean;

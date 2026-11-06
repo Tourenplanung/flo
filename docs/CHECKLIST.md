@@ -157,8 +157,35 @@ proxy) and `src/core/__tests__/ai.test.ts`, `server/claude-proxy.test.ts`.
 - The player shows the base layout (breakpoint overrides are not previewed in the player).
 - Interactions are not exported to HTML yet (Milestone 6).
 
-## Milestone 6 — Code export (React + TS + CSS) ⬜
-`core/style.ts` already maps nodes to CSS and is designed to be shared by the exporter.
+## Milestone 6 — Code export (React + TS + CSS) ✅
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| React + TypeScript project (Vite) as .zip | ✅ | Top bar → Esporta, or workflow node |
+| One component per screen; semantic HTML (header, nav, section, h1…, button, a) | ✅ | |
+| Reusable React components from flö components; instance overrides as typed props | ✅ | texts / visible / images / styles; instance interactions via `rootProps` |
+| Shared CSS engine with the canvas and HTML export (flexbox auto layout) | ✅ | `core/export/styles.ts` |
+| Design tokens → CSS custom properties (`src/styles/tokens.css`) | ✅ | |
+| Responsive: breakpoint overrides → @media; screens are fluid up to their width | ✅ | |
+| Prototype in code: navigation (hash routing), back, overlays, show/hide, transitions | ✅ | `src/prototype.tsx`; reduced-motion respected |
+| Assets packaged in `public/assets/` with predictable paths | ✅ | |
+| Accessible interactive elements (button/role, tabIndex, Enter/Space, focus ring) | ✅ | |
+| Basic accessibility validation shipped as `ACCESSIBILITY.md` | ✅ | WCAG contrast, alt text, touch targets, headings |
+| HTML/CSS single-page export from the top bar | ✅ | |
+
+**Acceptance:** a generated React project builds and runs independently — verified by
+`e2e/react-export.spec.ts`, which designs a landing page, downloads the zip, runs
+`npm install` + `npm run build` (`tsc --noEmit && vite build`) on it, serves the build and
+navigates the prototype; `src/core/__tests__/reactExport.test.ts` type-checks generated code
+in strict mode.
+
+### Known limitations after M6
+
+- Class names are generated (`home-1`, …) and layout values are absolute pixels from the
+  design; the code is a clean starting point, not hand-written idiomatic CSS.
+- Icon overrides on instances and variant switching at runtime are not exported.
+- Fonts are loaded from Google Fonts in the generated `index.html` (bundled families only).
+- Tailwind CSS and other frameworks are not offered yet.
 
 ## Milestone 7 — Release preparation ⬜
 PWA/offline service worker, performance (main JS ≈ 228 kB gzip; workflow view lazy-loaded),
@@ -166,4 +193,5 @@ accessibility review, security review, in-app third-party license notices, deplo
 
 ## Test totals
 
-80 unit/component tests (Vitest) · 10 end-to-end tests (Playwright).
+82 unit/component tests (Vitest) · 11 end-to-end tests (Playwright), including a test that
+installs, builds and runs an exported React project.

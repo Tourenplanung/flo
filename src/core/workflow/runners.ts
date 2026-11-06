@@ -6,6 +6,13 @@ import type { BriefValue, DesignValue, ReportValue, SitemapValue, StylesValue } 
 import { accessibilityReport, consistencyReport, responsiveReport } from './checks';
 import { NodeRunError, type Runner, type RunnerContext } from './engine';
 import { exportHtml } from './htmlExport';
+import { exportReactProject } from '../export/react';
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
 import { DEVICES, ensurePage, liveFrames, nextFreeX, removeGenerated, type Device } from './placement';
 import { adaptTree } from './responsive';
 import { deriveStyles, designSystemTokenOps, styleTree, styleUpdates, type DesignSystemParams } from './styling';
@@ -242,6 +249,16 @@ export const RUNNERS: Record<string, Runner> = {
       return n + count;
     }, 0);
     return { outputs: {}, summary: t(ctx, `${frames.length} schermate · ${links} interazioni`, `${frames.length} screens · ${links} interactions`) };
+  },
+
+  'react-export': async (ctx) => {
+    const { project, frames } = needDesign(ctx);
+    const res = await exportReactProject(project, frames, { name: String(ctx.params.name || project.name), lang: ctx.host.lang }, { getAssetBytes: ctx.host.getAssetBytes });
+    const files = res.files.map((f) =>
+      typeof f.content === 'string' ? { path: f.path, content: f.content } : { path: f.path, content: bytesToBase64(f.content), encoding: 'base64' as const },
+    );
+    const a = res.a11y.issues.filter((i) => i.severity !== 'info').length;
+    return { outputs: { code: { type: 'code', files } }, summary: t(ctx, `${files.length} file · ${res.screens.length} schermate · ${a} avvisi a11y`, `${files.length} files · ${res.screens.length} screens · ${a} a11y warnings`) };
   },
 
   'html-export': async (ctx) => {

@@ -162,6 +162,22 @@ capability, and are `unavailable` when no provider is configured. See `docs/AI.m
 - **Player UI** (`ui/prototype/PrototypePlayer.tsx`) renders screens with the same `nodeStyle`
   and token/instance resolution as the canvas; CSS keyframes provide the transitions.
 
+## Code export (Milestone 6)
+
+```
+core/export/styles.ts  StyleBuilder: nodeStyle + tokens (CSS vars) + breakpoint @media (shared by HTML and React)
+core/export/react.ts   exportReactProject(): screens, components, prototype runtime, assets, a11y report
+core/export/zip.ts     Dependency-free ZIP writer (stored)
+core/export/icons.ts   flö icon → lucide-react component names
+```
+
+Generated project: `src/screens/*` (one component + CSS per top-level frame),
+`src/components/*` (one per main component; instances pass `texts`, `visible`, `images`,
+`styles`, `rootProps`), `src/prototype.tsx` (navigation, overlays, show/hide, transitions,
+hash routing), `src/styles/tokens.css`, `public/assets/*`, `ACCESSIBILITY.md`, `README.md`.
+Text is emitted as JavaScript string literals and attributes via `JSON.stringify`, so design
+content can never inject markup or code into the generated project.
+
 ## Persistence and security
 
 - Projects are stored as validated documents in IndexedDB (Dexie); images as blobs.

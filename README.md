@@ -8,7 +8,7 @@ API are required. Italian is the default language; English is available.
 
 ## Status
 
-Milestones 1–5 (foundation, design engine, workflow engine, optional AI, prototyping) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
+Milestones 1–6 (foundation, design engine, workflow engine, optional AI, prototyping, code export) are complete. See [docs/CHECKLIST.md](docs/CHECKLIST.md) for the
 roadmap and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
 ## Requirements
@@ -52,6 +52,20 @@ On a fresh machine, install the Playwright browser once with `npx playwright ins
   layers to edges/center or stretch/scale them with their frame.
 - Everything is undoable (`⌘Z` / `⌘⇧Z`), listed in the *Cronologia* tab, and autosaved to
   IndexedDB together with the history.
+
+## Code export
+
+Top bar → **Esporta** → *Codice React + TypeScript (.zip)* exports the selected screens (or all
+frames of the page) as a Vite project:
+
+```bash
+unzip my-project-react.zip && cd my-project
+npm install && npm run dev
+```
+
+Screens become components, flö components become reusable React components with props,
+tokens become CSS variables, breakpoints become media queries, and prototype links keep
+working. *Pagina HTML/CSS* exports a single static page.
 
 ## Prototyping
 

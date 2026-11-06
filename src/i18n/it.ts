@@ -336,6 +336,14 @@ export const it = {
   'proto.hint': "Clic sugli elementi interattivi · ← indietro · R ricomincia · Esc esci",
   'proto.screen': "Schermata",
   'proto.open': "Apri prototipo",
+  'exp.title': "Esporta",
+  'exp.project': "Progetto flö (.flo.json)",
+  'exp.react': "Codice React + TypeScript (.zip)",
+  'exp.html': "Pagina HTML/CSS (.html)",
+  'exp.scope': "Esporta la selezione o tutti i frame della pagina",
+  'exp.noFrames': "Nessun frame da esportare in questa pagina.",
+  'exp.reactDone': "Esportate {n} schermate · {a} avvisi di accessibilità · {w} avvisi (vedi README)",
+  'wf.zip': "Scarica .zip",
   'shortcuts.title': 'Scorciatoie',
 } as const;
 

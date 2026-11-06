@@ -30,6 +30,12 @@ export function createEditorHost(): EngineHost {
       const blob = await projectRepo.getAssetBlob(p.id, assetId);
       return blob ? blobToDataUrl(blob) : null;
     },
+    getAssetBytes: async (assetId) => {
+      const p = getProject();
+      if (!p) return null;
+      const blob = await projectRepo.getAssetBlob(p.id, assetId);
+      return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+    },
     iconSvg: async (name, strokeWidth) => {
       const Icon = DESIGN_ICONS[name as IconName];
       if (!Icon) return '';

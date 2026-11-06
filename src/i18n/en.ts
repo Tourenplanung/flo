@@ -338,5 +338,13 @@ export const en: Record<MessageKey, string> = {
   'proto.hint': "Click interactive elements · ← back · R restart · Esc exit",
   'proto.screen': "Screen",
   'proto.open': "Open prototype",
+  'exp.title': "Export",
+  'exp.project': "flö project (.flo.json)",
+  'exp.react': "React + TypeScript code (.zip)",
+  'exp.html': "HTML/CSS page (.html)",
+  'exp.scope': "Exports the selection, or every frame on the page",
+  'exp.noFrames': "No frames to export on this page.",
+  'exp.reactDone': "Exported {n} screens · {a} accessibility warnings · {w} warnings (see README)",
+  'wf.zip': "Download .zip",
   'shortcuts.title': 'Shortcuts',
 };

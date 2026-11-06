@@ -39,6 +39,7 @@ test('group, ungroup, copy/paste, pages, language and export/import', async ({ p
 
   // Export downloads a .flo.json bundle
   const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('export-menu').click();
   await page.getByTestId('export-project').click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.flo\.json$/);
